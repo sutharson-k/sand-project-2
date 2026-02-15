@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandify — Premium Sand Delivery Marketplace</title>
+    <meta name="description"
+        content="Sandify - Your trusted marketplace for premium sand delivery. Order construction sand, decorative sand, and more with real-time tracking.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- ====== NAVBAR ====== -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#home" class="logo" id="logo">
+                <i class="fas fa-mountain-sun"></i>
+                <span>Sandify</span>
+            </a>
+            <div class="nav-links" id="nav-links">
+                <a href="#home" class="nav-link active" data-page="home">Home</a>
+                <a href="#catalog" class="nav-link" data-page="catalog">Sand Catalog</a>
+                <a href="#seller" class="nav-link" data-page="seller">Become Partner</a>
+                <a href="#about" class="nav-link" data-page="about">About</a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn-location" id="btn-nav-location" style="display:none;" title="Change Location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span id="nav-location-text">Set Location</span>
+                </button>
+                <div class="profile-wrapper" id="profile-wrapper" style="display:none;">
+                    <button class="profile-btn" id="profile-btn">
+                        <div class="profile-avatar" id="profile-avatar">U</div>
+                    </button>
+                    <div class="profile-dropdown" id="profile-dropdown">
+                        <div class="dropdown-header">
+                            <div class="dropdown-avatar" id="dropdown-avatar">U</div>
+                            <div class="dropdown-info">
+                                <span class="dropdown-name" id="dropdown-name">User</span>
+                                <span class="dropdown-email" id="dropdown-email">user@email.com</span>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="#profile" class="dropdown-item" data-action="profile">
+                            <i class="fas fa-user"></i> My Profile
+                        </a>
+                        <a href="#orders" class="dropdown-item" data-action="orders">
+                            <i class="fas fa-box"></i> My Orders
+                        </a>
+                        <div class="dropdown-item" data-action="theme">
+                            <i class="fas fa-palette"></i> Appearance
+                            <label class="theme-switch">
+                                <input type="checkbox" id="theme-toggle">
+                                <span class="theme-slider">
+                                    <i class="fas fa-sun"></i>
+                                    <i class="fas fa-moon"></i>
+                                </span>
+                            </label>
+                        </div>
+                        <a href="#support" class="dropdown-item" data-action="support">
+                            <i class="fas fa-headset"></i> Customer Care
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item logout" data-action="logout">
+                            <i class="fas fa-sign-out-alt"></i> Sign Out
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-auth" id="btn-login" onclick="showAuth('login')">
+                    <i class="fas fa-user"></i> Login
+                </button>
+                <button class="mobile-menu" id="mobile-menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ====== AUTH MODAL ====== -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('auth-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-mountain-sun auth-logo-icon"></i>
+                    <h2 id="auth-title">Welcome to Sandify</h2>
+                    <p id="auth-subtitle">Login to continue</p>
+                </div>
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="login-password" placeholder="Enter password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                    <p class="auth-switch">Don't have an account? <a href="#" onclick="showAuth('signup')">Sign Up</a>
+                    </p>
+                </form>
+                <!-- Signup Form -->
+                <form id="signup-form" class="auth-form" style="display:none;" onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="signup-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="signup-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-phone"></i> Phone</label>
+                        <input type="tel" id="signup-phone" placeholder="+91 98765 43210" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="signup-password" placeholder="Create password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                    <p class="auth-switch">Already have an account? <a href="#" onclick="showAuth('login')">Login</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== LOCATION MODAL ====== -->
+    <div class="modal-overlay" id="location-modal">
+        <div class="modal location-modal">
+            <div class="location-header">
+                <i class="fas fa-map-marker-alt location-icon-big"></i>
+                <h2>Set Your Delivery Location</h2>
+                <p>Help us find the best sand suppliers near you</p>
+            </div>
+            <div class="location-body">
+                <div class="form-group">
+                    <label><i class="fas fa-search"></i> Search Location</label>
+                    <input type="text" id="location-search" placeholder="Enter city, area or pincode..."
+                        list="location-suggestions">
+                    <datalist id="location-suggestions">
+                        <option value="Mumbai, Maharashtra">
+                        <option value="Delhi, NCR">
+                        <option value="Bangalore, Karnataka">
+                        <option value="Chennai, Tamil Nadu">
+                        <option value="Hyderabad, Telangana">
+                        <option value="Pune, Maharashtra">
+                        <option value="Ahmedabad, Gujarat">
+                        <option value="Kolkata, West Bengal">
+                        <option value="Jaipur, Rajasthan">
+                        <option value="Lucknow, Uttar Pradesh">
+                        <option value="Coimbatore, Tamil Nadu">
+                        <option value="Indore, Madhya Pradesh">
+                        <option value="Surat, Gujarat">
+                        <option value="Nagpur, Maharashtra">
+                        <option value="Vizag, Andhra Pradesh">
+                    </datalist>
+                </div>
+                <button class="btn btn-secondary btn-full" onclick="useCurrentLocation()">
+                    <i class="fas fa-crosshairs"></i> Use Current Location
+                </button>
+                <div class="popular-locations">
+                    <h4>Popular Cities</h4>
+                    <div class="location-chips">
+                        <button class="chip" onclick="selectLocation('Mumbai')"><i class="fas fa-building"></i>
+                            Mumbai</button>
+                        <button class="chip" onclick="selectLocation('Delhi')"><i class="fas fa-building"></i>
+                            Delhi</button>
+                        <button class="chip" onclick="selectLocation('Bangalore')"><i class="fas fa-building"></i>
+                            Bangalore</button>
+                        <button class="chip" onclick="selectLocation('Chennai')"><i class="fas fa-building"></i>
+                            Chennai</button>
+                        <button class="chip" onclick="selectLocation('Hyderabad')"><i class="fas fa-building"></i>
+                            Hyderabad</button>
+                        <button class="chip" onclick="selectLocation('Pune')"><i class="fas fa-building"></i>
+                            Pune</button>
+                    </div>
+                </div>
+            </div>
+            <div class="location-footer">
+                <button class="btn btn-primary btn-full" onclick="confirmLocation()">
+                    <i class="fas fa-check"></i> Confirm Location
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== CUSTOMER CARE MODAL ====== -->
+    <div class="modal-overlay" id="support-modal">
+        <div class="modal support-modal">
+            <button class="modal-close" onclick="closeModal('support-modal')">&times;</button>
+            <div class="support-content">
+                <i class="fas fa-headset support-icon-big"></i>
+                <h2>Customer Care</h2>
+                <p>We're here to help you 24/7</p>
+                <div class="support-options">
+                    <div class="support-card">
+                        <i class="fas fa-phone"></i>
+                        <h4>Call Us</h4>
+                        <p>+91 1800-SANDIFY</p>
+                    </div>
+                    <div class="support-card">
+                        <i class="fas fa-envelope"></i>
+                        <h4>Email Us</h4>
+                        <p>support@sandify.in</p>
+                    </div>
+                    <div class="support-card">
+                        <i class="fab fa-whatsapp"></i>
+                        <h4>WhatsApp</h4>
+                        <p>+91 98765 43210</p>
+                    </div>
+                </div>
+                <div class="support-form">
+                    <h4>Send us a message</h4>
+                    <textarea placeholder="Describe your issue..." rows="3"></textarea>
+                    <button class="btn btn-primary"
+                        onclick="alert('Message sent! We will get back to you within 24 hours.'); closeModal('support-modal');">
+                        <i class="fas fa-paper-plane"></i> Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== PAGE: HOME ====== -->
+    <section class="page active" id="page-home">
+        <!-- Hero -->
+        <div class="hero">
+            <div class="hero-particles" id="hero-particles"></div>
+            <div class="hero-content">
+                <div class="hero-badge"><i class="fas fa-shield-halved"></i> Trusted by 10,000+ Builders</div>
+                <h1 class="hero-title">
+                    Premium Sand<br>
+                    <span class="gradient-text">Delivered to Your Site</span>
+                </h1>
+                <p class="hero-desc">India's #1 marketplace connecting sand buyers with verified quarries and reliable
+                    transport. 6 premium sand types, fast delivery, fair prices, quality guaranteed.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-large" onclick="navigateWithAuth('catalog')">
+                        <i class="fas fa-shopping-cart"></i> Order Sand Now
+                    </button>
+                    <button class="btn btn-outline btn-large" onclick="navigateWithAuth('seller')">
+                        <i class="fas fa-handshake"></i> Become a Partner
+                    </button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number" data-count="6">0</span><span class="stat-suffix"></span>
+                        <span class="stat-label">Sand Types</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="500">0</span><span class="stat-suffix">+</span>
+                        <span class="stat-label">Verified Quarries</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="10000">0</span><span class="stat-suffix">+</span>
+                        <span class="stat-label">Orders Delivered</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-count="25">0</span><span class="stat-suffix">+</span>
+                        <span class="stat-label">Cities Covered</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-sand-shape"></div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="section" id="how-it-works">
+            <h2 class="section-title">How <span class="gradient-text">Sandify</span> Works</h2>
+            <p class="section-subtitle">Get premium sand delivered in 4 easy steps</p>
+            <div class="steps-grid">
+                <div class="step-card" data-aos="fade-up">
+                    <div class="step-number">01</div>
+                    <div class="step-icon"><i class="fas fa-search"></i></div>
+                    <h3>Browse & Select</h3>
+                    <p>Choose from 6 types of sand for your construction or landscaping needs</p>
+                </div>
+                <div class="step-card" data-aos="fade-up" data-delay="100">
+                    <div class="step-number">02</div>
+                    <div class="step-icon"><i class="fas fa-store"></i></div>
+                    <h3>Pick a Dealer</h3>
+                    <p>Compare verified dealers, check ratings, and select the best price</p>
+                </div>
+                <div class="step-card" data-aos="fade-up" data-delay="200">
+                    <div class="step-number">03</div>
+                    <div class="step-icon"><i class="fas fa-truck"></i></div>
+                    <h3>Choose Transport</h3>
+                    <p>Select from multiple transport options based on quantity and budget</p>
+                </div>
+                <div class="step-card" data-aos="fade-up" data-delay="300">
+                    <div class="step-number">04</div>
+                    <div class="step-icon"><i class="fas fa-map-marked-alt"></i></div>
+                    <h3>Track & Receive</h3>
+                    <p>Live-track your order from quarry to doorstep with real-time updates</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Featured Sand Types -->
+        <div class="section" id="featured">
+            <h2 class="section-title">Our <span class="gradient-text">Sand Types</span></h2>
+            <p class="section-subtitle">Premium quality sand chosen by builders across India</p>
+            <div class="featured-grid" id="featured-grid"></div>
+            <div class="section-cta">
+                <button class="btn btn-primary btn-large" onclick="navigateWithAuth('catalog')">
+                    <i class="fas fa-th"></i> View All Sand Types
+                </button>
+            </div>
+        </div>
+
+        <!-- About Us -->
+        <div class="section about-section" id="about">
+            <div class="about-grid">
+                <div class="about-content">
+                    <h2 class="section-title left-align">About <span class="gradient-text">Sandify</span></h2>
+                    <p class="about-text">Sandify is India's pioneering digital marketplace dedicated to revolutionizing
+                        how sand is sourced, sold, and delivered across the nation. We bridge the gap between quarry
+                        operators, construction companies, and transportation providers through cutting-edge technology.
+                    </p>
+                    <p class="about-text">Our platform ensures quality-certified materials, transparent pricing in ₹,
+                        and real-time delivery tracking — bringing the convenience of modern e-commerce to the
+                        construction materials industry.</p>
+                    <div class="about-features">
+                        <div class="about-feature">
+                            <i class="fas fa-certificate"></i>
+                            <div>
+                                <h4>Quality Certified</h4>
+                                <p>Every quarry is verified and sand quality tested</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-rupee-sign"></i>
+                            <div>
+                                <h4>Transparent Pricing</h4>
+                                <p>No hidden fees — what you see is what you pay</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-truck-fast"></i>
+                            <div>
+                                <h4>Fast Delivery</h4>
+                                <p>Same-day delivery in major cities</p>
+                            </div>
+                        </div>
+                        <div class="about-feature">
+                            <i class="fas fa-shield-halved"></i>
+                            <div>
+                                <h4>Secure Payments</h4>
+                                <p>Multiple payment options with buyer protection</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-visual">
+                    <div class="about-image-grid">
+                        <div class="about-img" style="background: linear-gradient(135deg, #D4A574, #C68B59);"><i
+                                class="fas fa-mountain"></i></div>
+                        <div class="about-img" style="background: linear-gradient(135deg, #2D9CDB, #56CCF2);"><i
+                                class="fas fa-truck"></i></div>
+                        <div class="about-img" style="background: linear-gradient(135deg, #6C63FF, #B8B5FF);"><i
+                                class="fas fa-handshake"></i></div>
+                        <div class="about-img" style="background: linear-gradient(135deg, #F2994A, #F2C94C);"><i
+                                class="fas fa-chart-line"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roles Section -->
+        <div class="section">
+            <h2 class="section-title">Join the <span class="gradient-text">Sandify Network</span></h2>
+            <p class="section-subtitle">Whether you buy, supply, or transport — there's a place for you</p>
+            <div class="roles-grid">
+                <div class="role-card buyer">
+                    <div class="role-icon"><i class="fas fa-shopping-bag"></i></div>
+                    <h3>Buyer</h3>
+                    <p>Order premium sand with competitive prices and live tracking. Choose from 6 varieties.</p>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Browse 6 sand types</li>
+                        <li><i class="fas fa-check"></i> Compare dealer prices</li>
+                        <li><i class="fas fa-check"></i> Live order tracking</li>
+                        <li><i class="fas fa-check"></i> Secure online payments</li>
+                    </ul>
+                    <button class="btn btn-primary" onclick="navigateWithAuth('catalog')">Start Ordering</button>
+                </div>
+                <div class="role-card supplier">
+                    <div class="role-icon"><i class="fas fa-industry"></i></div>
+                    <h3>Sand Supplier</h3>
+                    <p>List your quarry, reach thousands of buyers, and grow your business exponentially.</p>
+                    <ul>
+                        <li><i class="fas fa-check"></i> List your quarry for free</li>
+                        <li><i class="fas fa-check"></i> Reach 10,000+ buyers</li>
+                        <li><i class="fas fa-check"></i> Easy order management</li>
+                        <li><i class="fas fa-check"></i> Instant payouts</li>
+                    </ul>
+                    <button class="btn btn-primary" onclick="navigateWithAuth('seller')">Register Quarry</button>
+                </div>
+                <div class="role-card transport">
+                    <div class="role-icon"><i class="fas fa-truck-moving"></i></div>
+                    <h3>Transport Provider</h3>
+                    <p>Register your fleet, get regular delivery jobs, and maximize your earnings.</p>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Register your vehicles</li>
+                        <li><i class="fas fa-check"></i> Get steady job requests</li>
+                        <li><i class="fas fa-check"></i> Route optimization</li>
+                        <li><i class="fas fa-check"></i> Weekly settlements</li>
+                    </ul>
+                    <button class="btn btn-primary" onclick="navigateWithAuth('seller', 'transport')">Register
+                        Fleet</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo"><i class="fas fa-mountain-sun"></i> Sandify</div>
+                    <p>India's #1 sand delivery marketplace. Quality materials, transparent pricing, fast delivery.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <a href="#home">Home</a>
+                    <a href="#catalog">Sand Catalog</a>
+                    <a href="#seller">Become Partner</a>
+                    <a href="#about">About Us</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Support</h4>
+                    <a href="#" onclick="openModal('support-modal')">Customer Care</a>
+                    <a href="#">FAQs</a>
+                    <a href="#">Shipping Policy</a>
+                    <a href="#">Refund Policy</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Contact</h4>
+                    <p><i class="fas fa-phone"></i> +91 1800-SANDIFY</p>
+                    <p><i class="fas fa-envelope"></i> hello@sandify.in</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Mumbai, India</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Sandify. All rights reserved. Made with <i class="fas fa-heart"
+                        style="color:#e74c3c"></i> in India</p>
+            </div>
+        </footer>
+    </section>
+
+    <!-- ====== PAGE: CATALOG ====== -->
+    <section class="page" id="page-catalog">
+        <div class="page-header">
+            <h1><i class="fas fa-th-large"></i> Sand Catalog</h1>
+            <p>Browse 6 types of premium quality sand</p>
+        </div>
+        <div class="catalog-controls">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="catalog-search" placeholder="Search sand types..." oninput="filterCatalog()">
+            </div>
+            <div class="filter-bar">
+                <button class="filter-chip active" data-cat="all" onclick="filterByCategory('all', this)">All</button>
+                <button class="filter-chip" data-cat="construction"
+                    onclick="filterByCategory('construction', this)">Construction</button>
+                <button class="filter-chip" data-cat="industrial"
+                    onclick="filterByCategory('industrial', this)">Industrial</button>
+                <button class="filter-chip" data-cat="decorative"
+                    onclick="filterByCategory('decorative', this)">Decorative</button>
+                <button class="filter-chip" data-cat="landscaping"
+                    onclick="filterByCategory('landscaping', this)">Landscaping</button>
+                <button class="filter-chip" data-cat="specialty"
+                    onclick="filterByCategory('specialty', this)">Specialty</button>
+            </div>
+        </div>
+        <div class="catalog-grid" id="catalog-grid"></div>
+    </section>
+
+    <!-- ====== PAGE: SAND DETAIL ====== -->
+    <section class="page" id="page-detail">
+        <button class="btn-back" onclick="navigateTo('catalog')"><i class="fas fa-arrow-left"></i> Back to
+            Catalog</button>
+        <div class="detail-container" id="detail-container"></div>
+    </section>
+
+    <!-- ====== PAGE: DEALERS ====== -->
+    <section class="page" id="page-dealers">
+        <button class="btn-back" onclick="navigateTo('detail')"><i class="fas fa-arrow-left"></i> Back to Sand
+            Details</button>
+        <div class="page-header">
+            <h1><i class="fas fa-store"></i> Choose a Dealer</h1>
+            <p id="dealer-subtitle">Select a verified supplier for your sand</p>
+        </div>
+        <div class="dealers-list" id="dealers-list"></div>
+    </section>
+
+    <!-- ====== PAGE: TRANSPORT ====== -->
+    <section class="page" id="page-transport">
+        <button class="btn-back" onclick="navigateTo('dealers')"><i class="fas fa-arrow-left"></i> Back to
+            Dealers</button>
+        <div class="page-header">
+            <h1><i class="fas fa-truck-moving"></i> Choose Transport</h1>
+            <p>Select a vehicle for delivery</p>
+        </div>
+        <div class="transport-list" id="transport-list"></div>
+    </section>
+
+    <!-- ====== PAGE: ORDER FORM ====== -->
+    <section class="page" id="page-order">
+        <button class="btn-back" onclick="navigateTo('transport')"><i class="fas fa-arrow-left"></i> Back to
+            Transport</button>
+        <div class="page-header">
+            <h1><i class="fas fa-file-invoice"></i> Order Summary</h1>
+            <p>Review and confirm your order</p>
+        </div>
+        <div class="order-container">
+            <div class="order-details" id="order-details"></div>
+            <div class="order-sidebar">
+                <div class="price-card" id="price-card"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== PAGE: PAYMENT ====== -->
+    <section class="page" id="page-payment">
+        <div class="page-header">
+            <h1><i class="fas fa-credit-card"></i> Payment</h1>
+            <p>Complete your payment securely</p>
+        </div>
+        <div class="payment-container" id="payment-container"></div>
+    </section>
+
+    <!-- ====== PAGE: TRACKING ====== -->
+    <section class="page" id="page-tracking">
+        <div class="tracking-container" id="tracking-container"></div>
+    </section>
+
+    <!-- ====== PAGE: SELLER / PARTNER ====== -->
+    <section class="page" id="page-seller">
+        <div class="page-header">
+            <h1><i class="fas fa-handshake"></i> Become a Partner</h1>
+            <p>Join the Sandify network as a supplier or transport provider</p>
+        </div>
+        <div class="seller-tabs">
+            <button class="seller-tab active" onclick="switchSellerTab('supplier', this)">
+                <i class="fas fa-industry"></i> Sand Supplier
+            </button>
+            <button class="seller-tab" onclick="switchSellerTab('transport', this)">
+                <i class="fas fa-truck-moving"></i> Transport Provider
+            </button>
+        </div>
+
+        <!-- Supplier Form -->
+        <div class="seller-form-container" id="supplier-form-container">
+            <form class="seller-form" id="supplier-form" onsubmit="handleSupplierSubmit(event)">
+                <div class="form-section">
+                    <h3><i class="fas fa-building"></i> Business Information</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Business Name *</label><input type="text"
+                                placeholder="e.g., Sharma Quarries Pvt. Ltd." required></div>
+                        <div class="form-group"><label>Owner Name *</label><input type="text" placeholder="Full name"
+                                required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Business Email *</label><input type="email"
+                                placeholder="business@email.com" required></div>
+                        <div class="form-group"><label>Phone *</label><input type="tel" placeholder="+91 98765 43210"
+                                required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>GST Number *</label><input type="text"
+                                placeholder="22AAAAA0000A1Z5" required></div>
+                        <div class="form-group"><label>PAN Number *</label><input type="text" placeholder="AAAAA0000A"
+                                required></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-mountain"></i> Quarry Details</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Quarry Name *</label><input type="text"
+                                placeholder="Name of the quarry" required></div>
+                        <div class="form-group"><label>Quarry License No. *</label><input type="text"
+                                placeholder="License number" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Quarry Location *</label><input type="text"
+                                placeholder="Full address" required></div>
+                        <div class="form-group"><label>State *</label>
+                            <select required>
+                                <option value="">Select State</option>
+                                <option>Maharashtra</option>
+                                <option>Tamil Nadu</option>
+                                <option>Karnataka</option>
+                                <option>Gujarat</option>
+                                <option>Rajasthan</option>
+                                <option>Andhra Pradesh</option>
+                                <option>Uttar Pradesh</option>
+                                <option>West Bengal</option>
+                                <option>Madhya Pradesh</option>
+                                <option>Telangana</option>
+                                <option>Kerala</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Sand Types Available *</label>
+                        <input type="text" placeholder="e.g., River Sand, M-Sand, Concrete Sand" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Monthly Production Capacity (in tons) *</label>
+                        <input type="number" placeholder="e.g., 5000" required>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-certificate"></i> Quality Certificates</h3>
+                    <div class="upload-grid">
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Mining Lease Document</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Environmental Clearance</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Quality Test Report</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>BIS Certification</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-rupee-sign"></i> Pricing</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Base Price per Ton (₹) *</label><input type="number"
+                                placeholder="e.g., 800" required></div>
+                        <div class="form-group"><label>Minimum Order (tons) *</label><input type="number"
+                                placeholder="e.g., 5" required></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-large">
+                    <i class="fas fa-paper-plane"></i> Submit Application
+                </button>
+            </form>
+        </div>
+
+        <!-- Transport Form -->
+        <div class="seller-form-container" id="transport-form-container" style="display:none;">
+            <form class="seller-form" id="transport-form" onsubmit="handleTransportSubmit(event)">
+                <div class="form-section">
+                    <h3><i class="fas fa-building"></i> Business Information</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Company Name *</label><input type="text"
+                                placeholder="e.g., FastHaul Logistics" required></div>
+                        <div class="form-group"><label>Owner Name *</label><input type="text" placeholder="Full name"
+                                required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Business Email *</label><input type="email"
+                                placeholder="business@email.com" required></div>
+                        <div class="form-group"><label>Phone *</label><input type="tel" placeholder="+91 98765 43210"
+                                required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>GST Number *</label><input type="text"
+                                placeholder="22AAAAA0000A1Z5" required></div>
+                        <div class="form-group"><label>Transport License No. *</label><input type="text"
+                                placeholder="License number" required></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-truck"></i> Vehicle Details</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Number of Vehicles *</label><input type="number"
+                                placeholder="e.g., 10" required></div>
+                        <div class="form-group"><label>Vehicle Types *</label>
+                            <select required>
+                                <option value="">Select type</option>
+                                <option>Tipper Trucks</option>
+                                <option>Dumper Trucks</option>
+                                <option>Trailer Trucks</option>
+                                <option>Mini Trucks</option>
+                                <option>Mixed Fleet</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Max Load Capacity (tons) *</label><input type="number"
+                                placeholder="e.g., 20" required></div>
+                        <div class="form-group"><label>Operating Area *</label><input type="text"
+                                placeholder="e.g., Mumbai, Pune, Nashik" required></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-file-alt"></i> Legal Documents</h3>
+                    <div class="upload-grid">
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Vehicle RC Book</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Insurance Certificate</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Fitness Certificate</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                        <div class="upload-box">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Permit Document</span>
+                            <input type="file" accept=".pdf,.jpg,.png">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3><i class="fas fa-rupee-sign"></i> Rate Card</h3>
+                    <div class="form-row">
+                        <div class="form-group"><label>Rate per KM (₹) *</label><input type="number"
+                                placeholder="e.g., 25" required></div>
+                        <div class="form-group"><label>Base Charge (₹) *</label><input type="number"
+                                placeholder="e.g., 2000" required></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-large">
+                    <i class="fas fa-paper-plane"></i> Submit Application
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- ====== PAGE: PROFILE ====== -->
+    <section class="page" id="page-profile">
+        <div class="page-header">
+            <h1><i class="fas fa-user-circle"></i> My Profile</h1>
+            <p>Manage your account details</p>
+        </div>
+        <div class="profile-page-content" id="profile-page-content"></div>
+    </section>
+
+    <!-- ====== PAGE: MY ORDERS ====== -->
+    <section class="page" id="page-orders">
+        <div class="page-header">
+            <h1><i class="fas fa-box"></i> My Orders</h1>
+            <p>Track and manage your sand orders</p>
+        </div>
+        <div class="orders-list" id="orders-list"></div>
+    </section>
+
+    <!-- ====== SUCCESS MODAL ====== -->
+    <div class="modal-overlay" id="success-modal">
+        <div class="modal success-modal">
+            <div class="success-content">
+                <div class="success-checkmark">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2 id="success-title">Success!</h2>
+                <p id="success-message">Your action was completed successfully.</p>
+                <button class="btn btn-primary" id="success-btn" onclick="closeModal('success-modal')">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== TOAST ====== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
