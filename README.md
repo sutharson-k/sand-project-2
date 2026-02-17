@@ -65,6 +65,13 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## License
 
+
+How to run
+1) npm install
+2) npx convex dev
+3) npm run dev
+
+
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
