@@ -1,80 +1,113 @@
-# Sand Project
+Sandify Project – Code Explanation (Summary)
 
-An interactive sand simulation and visualization project built with HTML, CSS, and JavaScript.
+Overview
+- This project is now a Vite + React frontend with a Convex backend.
+- The UI is preserved from the original HTML/CSS/JS by embedding the legacy markup and script.
+- Authentication uses Convex Auth with Google OAuth and email/password.
+- Data (sand types, dealers, trucks, orders, profiles, applications) is stored in Convex.
 
-## Overview
+Frontend
 
-The Sand Project is a dynamic web application that simulates realistic sand particle physics and behavior. Users can interact with the sand environment through various tools and modes to create interesting patterns and structures.
+index.html
+- Entry point for Vite. Loads fonts, Font Awesome, and the legacy styles, then mounts React at #root.
 
-## Features
+src/main.tsx
+- Creates Convex client using VITE_CONVEX_URL.
+- Wraps the app in ConvexAuthProvider so auth + data queries work.
 
-- Interactive sand particle simulation
-- Multiple sand types with different properties
-- Realistic physics engine
-- Various visualization modes
-- Responsive design for different screen sizes
+src/App.tsx
+- Loads legacy HTML (src/legacy.html) into the page.
+- Injects public/app.js once and bridges Convex functions to the legacy script via window.
+- Handles auth state and writes user data to localStorage for the legacy UI.
+- Opens location modal after login if no location is set.
+- Opens profile setup modal after login if phone is missing.
+- Exposes these window helpers for legacy JS:
+  - __convexAuthSignIn / __convexAuthSignOut
+  - __convexSignInWithPassword / __convexSignUpWithPassword
+  - __convexSetPrefs / __convexSaveProfile
+  - __convexCreateOrder / __convexUpdateOrderStatus
+  - __convexSubmitSellerApp / __convexSubmitTransportApp
 
-## Technologies Used
+src/legacy.html
+- Original HTML layout for Sandify, including all sections, pages, modals.
+- Contains login/signup modal, location modal, profile setup modal, seller forms.
 
-- HTML5
-- CSS3
-- JavaScript (ES6+)
-- Canvas API for graphics rendering
+public/styles.css
+- Original styling for the UI.
 
-## Installation
+public/app.js (Legacy UI Logic)
+- All UI behavior: navigation, catalog, dealer selection, transport, order flow.
+- Google OAuth button hooks are in App.tsx; email/password hooks are in app.js.
+- Uses Convex when available, otherwise localStorage fallback.
+- Key functions:
+  - useCurrentLocation(): browser geolocation + OSM reverse geocoding.
+  - confirmLocation(): saves location locally + to Convex.
+  - processPayment(): creates order number, stores order in Convex.
+  - simulateTracking(): updates order status and pushes to Convex.
+  - handleSupplierSubmit / handleTransportSubmit: submit applications to Convex.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/sutharson-k/sand-project-2.git
-   ```
+Backend (Convex)
 
-2. Navigate to the project directory:
-   ```bash
-   cd sand-project-2
-   ```
+convex/schema.ts
+- Defines tables:
+  - authTables (Convex Auth)
+  - sandTypes (with imageStorageId for Convex File Storage)
+  - dealers
+  - trucks
+  - orders (orderNumber, names, status)
+  - userPrefs (location + theme)
+  - userProfiles (name/email/phone)
+  - sellerApplications (pending review)
+  - transportApplications (pending review)
 
-3. Open `index.html` in your preferred web browser.
+convex/auth.ts
+- Convex Auth config: Password provider + Google OAuth.
 
-## Usage
+convex/auth.config.ts
+- Convex OIDC config. Only includes Convex provider settings (required by Convex Auth).
 
-1. Open the application in a web browser
-2. Use the mouse to interact with the sand particles
-3. Select different tools from the interface
-4. Experiment with different sand types and behaviors
+convex/http.ts
+- Adds Convex Auth HTTP routes (OAuth callbacks, JWKS, etc.).
 
-## Project Structure
+convex/users.ts
+- viewer: returns logged-in user data.
+- profile: returns stored profile details (name/email/phone).
+- upsertProfile: saves profile details.
+- setPrefs / getPrefs: saves location + theme.
 
-```
-sand-project-2/
-├── index.html          # Main HTML file
-├── app.js             # JavaScript application logic
-├── styles.css         # Styling and layout
-├── images/            # Image assets
-│   ├── black-sand.jfif
-│   ├── landscape-sand.jfif
-│   ├── msand.jfif
-│   ├── psand.jfif
-│   ├── river-sand.jpg
-│   └── silica-sand.jfif
-└── README.md          # Project documentation
-```
+convex/sand.ts
+- listSandTypes / listSandTypesWithUrls (storage URLs).
+- seedSandTypes / seedDealers / seedTrucks (seed data).
+- listDealers / listTrucks.
+- createOrder: saves order + schedules server-side status updates.
+- updateOrderStatus: update status from client or server.
+- advanceOrderStatus (internal): scheduled status changes.
 
-## Contributing
+convex/images.ts
+- generateUploadUrl: for Convex File Storage.
+- attachSandImage: link uploaded image to sand type.
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+scripts/upload_images.mjs
+- Seeds sand types, dealers, trucks.
+- Uploads images from public/images to Convex storage.
+- Attaches storage IDs to sand types.
 
-## License
+run.bat
+- Starts Vite dev server with npm.
+- Opens http://localhost:5173.
+- Auto-installs dependencies if missing.
 
+Environment
+- .env contains VITE_CONVEX_URL for frontend.
+- Convex env vars include GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SITE_URL, JWT keys.
+
+Notes
+- For Google OAuth, the redirect URI must be:
+  https://intent-moose-161.eu-west-1.convex.site/api/auth/callback/google
+- If using ngrok or a tunnel, add that URL to Google OAuth and update Convex SITE_URL.
 
 How to run
 1) npm install
 2) npx convex dev
 3) npm run dev
 
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Special thanks to the open-source community for inspiration and resources
-- Images used in this project are for demonstration purposes
