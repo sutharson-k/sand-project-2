@@ -1,5 +1,5 @@
 // ====== SAND DATA (6 types) ======
-const sandTypes = [
+const sandTypes = window.__sandTypesData || [
     {
         id: 1, name: "River Sand", category: "construction", color: "linear-gradient(135deg,#C2B280,#A89060)", image: "images/river-sand.jpg", price: 850, grain: "0.5 - 2mm", moisture: "5-8%", density: "1520 kg/m³", origin: "River beds", icon: "fa-water",
         desc: "Premium natural river sand ideal for concrete mixing, plastering, and general construction. Sourced from riverbeds with consistent grain size and excellent binding properties. Washed and graded for optimal performance.",
@@ -33,7 +33,7 @@ const sandTypes = [
 ];
 
 // ====== DEALER DATA ======
-const dealers = [
+const dealers = window.__dealersData || [
     { id: 1, name: "Sharma Quarries Pvt. Ltd.", location: "Pune, Maharashtra", rating: 4.8, reviews: 342, bg: "linear-gradient(135deg,#6C63FF,#B8B5FF)", priceMultiplier: 1.0 },
     { id: 2, name: "Ganesh Sand Suppliers", location: "Chennai, Tamil Nadu", rating: 4.6, reviews: 218, bg: "linear-gradient(135deg,#F2994A,#F2C94C)", priceMultiplier: 0.95 },
     { id: 3, name: "Rajput Mining Co.", location: "Jaipur, Rajasthan", rating: 4.9, reviews: 567, bg: "linear-gradient(135deg,#27AE60,#6FCF97)", priceMultiplier: 1.05 },
@@ -43,7 +43,7 @@ const dealers = [
 ];
 
 // ====== TRANSPORT DATA ======
-const trucks = [
+const trucks = window.__trucksData || [
     { id: 1, name: "Mini Tipper (3 Ton)", icon: "fa-truck-pickup", capacity: "Up to 3 tons", eta: "Same day", baseCost: 1500, perTon: 200 },
     { id: 2, name: "Standard Tipper (7 Ton)", icon: "fa-truck", capacity: "Up to 7 tons", eta: "Same day", baseCost: 2500, perTon: 150 },
     { id: 3, name: "Heavy Dumper (14 Ton)", icon: "fa-truck-moving", capacity: "Up to 14 tons", eta: "Next day", baseCost: 4000, perTon: 120 },
@@ -64,9 +64,10 @@ let state = {
     orders: JSON.parse(localStorage.getItem('sandify_orders')) || [],
     pendingAction: null
 };
+window.state = state;
 
 // ====== INIT ======
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     applyTheme(state.theme);
     if (state.user) showLoggedInUI();
     createParticles();
@@ -103,7 +104,13 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('sandify_theme', t);
     });
     document.getElementById('btn-nav-location')?.addEventListener('click', () => openModal('location-modal'));
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // ====== ROUTING ======
 function handleHashRoute() {
@@ -171,6 +178,16 @@ function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const pwd = document.getElementById('login-password').value;
     if (!email || !pwd) return toast('Please fill all fields', 'error');
+    if (window.__convexSignInWithPassword) {
+        window.__convexSignInWithPassword(email, pwd)
+            .then(() => {
+                toast('Signed in successfully', 'success');
+            })
+            .catch(() => {
+                toast('Invalid email or password', 'error');
+            });
+        return;
+    }
     state.user = { name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), email, phone: '+91 98765 43210', joined: new Date().toLocaleDateString('en-IN') };
     localStorage.setItem('sandify_user', JSON.stringify(state.user));
     showLoggedInUI();
@@ -191,6 +208,17 @@ function handleSignup(e) {
     const phone = document.getElementById('signup-phone').value;
     const pwd = document.getElementById('signup-password').value;
     if (!name || !email || !phone || !pwd) return toast('Please fill all fields', 'error');
+    if (window.__convexSignUpWithPassword) {
+        window.__convexSignUpWithPassword(name, email, pwd)
+            .then(() => {
+                toast('Account created. Please log in.', 'success');
+                showAuth('login');
+            })
+            .catch(() => {
+                toast('Unable to create account', 'error');
+            });
+        return;
+    }
     state.user = { name, email, phone, joined: new Date().toLocaleDateString('en-IN') };
     localStorage.setItem('sandify_user', JSON.stringify(state.user));
     showLoggedInUI();
@@ -205,6 +233,9 @@ function handleSignup(e) {
 }
 
 function handleLogout() {
+    if (window.__convexAuthSignOut) {
+        window.__convexAuthSignOut();
+    }
     state.user = null;
     localStorage.removeItem('sandify_user');
     document.getElementById('profile-wrapper').style.display = 'none';
@@ -232,14 +263,65 @@ function selectLocation(loc) {
     document.getElementById('location-search').value = loc;
 }
 function useCurrentLocation() {
-    document.getElementById('location-search').value = 'Mumbai, Maharashtra';
-    toast('Location detected: Mumbai', 'info');
+    if (!navigator.geolocation) {
+        toast('Geolocation not supported by your browser', 'error');
+        return;
+    }
+    toast('Detecting your location...', 'info');
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&addressdetails=1`;
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) throw new Error('Geocoding failed');
+            const data = await res.json();
+            const addr = data.address || {};
+            const city = addr.city || addr.town || addr.village || addr.county || '';
+            const state = addr.state || '';
+            const country = addr.country || '';
+            const label = [city, state].filter(Boolean).join(', ') || country || 'Current location';
+            document.getElementById('location-search').value = label;
+            toast('Location detected: ' + label, 'success');
+        } catch (err) {
+            toast('Unable to resolve your location. Please type it manually.', 'error');
+        }
+    }, () => {
+        toast('Location permission denied. Please type it manually.', 'error');
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function openProfileSetup(user) {
+    if (!user) return;
+    document.getElementById('profile-name').value = user.name || '';
+    document.getElementById('profile-email').value = user.email || '';
+    document.getElementById('profile-phone').value = user.phone || '';
+    openModal('profile-setup-modal');
+}
+
+function handleProfileSetup(e) {
+    e.preventDefault();
+    const name = document.getElementById('profile-name').value.trim();
+    const email = document.getElementById('profile-email').value.trim();
+    const phone = document.getElementById('profile-phone').value.trim();
+    if (!name || !email || !phone) return toast('Please fill all fields', 'error');
+    if (window.__convexSaveProfile && state.user) {
+        window.__convexSaveProfile({ name, email, phone });
+    }
+    state.user = { ...state.user, name, email, phone };
+    localStorage.setItem('sandify_user', JSON.stringify(state.user));
+    showLoggedInUI();
+    closeModal('profile-setup-modal');
+    toast('Profile saved!', 'success');
 }
 function confirmLocation() {
     const loc = document.getElementById('location-search').value.trim();
     if (!loc) return toast('Please enter a location', 'error');
     state.location = loc;
     localStorage.setItem('sandify_location', loc);
+    if (window.__convexSetPrefs && state.user) {
+        window.__convexSetPrefs({ location: loc, theme: state.theme });
+    }
     document.getElementById('nav-location-text').textContent = loc;
     closeModal('location-modal');
     toast('Location set to ' + loc, 'success');
@@ -254,6 +336,11 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const toggle = document.getElementById('theme-toggle');
     if (toggle) toggle.checked = theme === 'light';
+    state.theme = theme;
+    localStorage.setItem('sandify_theme', theme);
+    if (window.__convexSetPrefs && state.user) {
+        window.__convexSetPrefs({ location: state.location || '', theme });
+    }
 }
 
 // ====== CATALOG ======
@@ -511,15 +598,33 @@ function selectPayment(el) {
 
 function processPayment(total) {
     const orderId = 'SND' + Date.now().toString().slice(-8);
+    const orderNumber = 'ORD-' + Date.now().toString().slice(-10);
+    const paymentMethod = document.querySelector('input[name="payment"]:checked')?.closest('.payment-option')?.innerText?.trim() || 'UPI';
     const order = {
-        id: orderId, sand: state.selectedSand.name, dealer: state.selectedDealer.name,
+        id: orderId, orderNumber, sand: state.selectedSand.name, dealer: state.selectedDealer.name,
         transport: state.selectedTruck.name, quantity: state.orderQuantity,
         total, date: new Date().toLocaleDateString('en-IN'), status: 'processing',
         color: state.selectedSand.color, icon: state.selectedSand.icon
     };
     state.orders.push(order);
     localStorage.setItem('sandify_orders', JSON.stringify(state.orders));
-    showSuccess('Payment Successful!', `Order #${orderId} confirmed. Your sand is being prepared for dispatch.`, () => goToTracking(orderId));
+    if (window.__convexCreateOrder && state.user) {
+        const address = document.getElementById('order-address')?.value || '';
+        window.__convexCreateOrder({
+            orderNumber,
+            sandName: state.selectedSand.name,
+            dealerName: state.selectedDealer.name,
+            truckName: state.selectedTruck.name,
+            quantity: state.orderQuantity,
+            total,
+            paymentMethod,
+            address
+        }).then((dbId) => {
+            order.dbId = dbId;
+            localStorage.setItem('sandify_orders', JSON.stringify(state.orders));
+        }).catch(() => {});
+    }
+    showSuccess('Payment Successful!', `Order #${orderNumber} confirmed. Your sand is being prepared for dispatch.`, () => goToTracking(orderId));
 }
 
 // ====== TRACKING ======
@@ -567,6 +672,7 @@ function goToTracking(orderId) {
 function simulateTracking() {
     const steps = ['tl-1', 'tl-2', 'tl-3', 'tl-4'];
     const times = ['Processing...', 'Loading...', '25 min away', 'Arriving!'];
+    const statusMap = ['processing', 'loading', 'delivering', 'delivered'];
     let i = 0;
     const interval = setInterval(() => {
         if (i >= steps.length) { clearInterval(interval); return; }
@@ -577,6 +683,12 @@ function simulateTracking() {
         el.querySelector('.timeline-dot').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         const eta = document.getElementById('eta-text');
         if (eta) eta.textContent = times[i];
+        if (window.__convexUpdateOrderStatus) {
+            const currentOrder = state.orders[state.orders.length - 1];
+            if (currentOrder?.dbId) {
+                window.__convexUpdateOrderStatus({ orderId: currentOrder.dbId, status: statusMap[i] });
+            }
+        }
         if (i === steps.length - 1) {
             setTimeout(() => {
                 el.classList.remove('active'); el.classList.add('completed');
@@ -599,11 +711,49 @@ function switchSellerTab(tab, el) {
 
 function handleSupplierSubmit(e) {
     e.preventDefault();
-    showSuccess('Application Submitted!', 'Your quarry registration is under review. Our team will verify your documents within 3-5 business days. You will receive a confirmation email shortly.', () => navigateTo('home'));
+    const form = document.getElementById('supplier-form');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    const company = inputs[0].value.trim();
+    const owner = inputs[1].value.trim();
+    const email = inputs[2].value.trim();
+    const phone = inputs[3].value.trim();
+    const location = inputs[6].value.trim();
+    const details = `${inputs[4].value.trim()} | ${inputs[5].value.trim()} | ${inputs[6].value.trim()} | ${inputs[7].value.trim()} | ${inputs[8].value.trim()} | ${inputs[9].value.trim()} | ${inputs[10].value.trim()} | ${inputs[11].value.trim()}`;
+    if (window.__convexSubmitSellerApp && state.user) {
+        window.__convexSubmitSellerApp({
+            company,
+            contactName: owner,
+            phone,
+            email,
+            location,
+            details
+        }).catch(() => {});
+    }
+    showSuccess('Application Submitted!', 'Your quarry registration is under review. We will notify you after approval.', () => navigateTo('home'));
 }
 function handleTransportSubmit(e) {
     e.preventDefault();
-    showSuccess('Application Submitted!', 'Your fleet registration is under review. Our team will verify your documents within 3-5 business days. You will receive a confirmation email shortly.', () => navigateTo('home'));
+    const form = document.getElementById('transport-form');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    const company = inputs[0].value.trim();
+    const owner = inputs[1].value.trim();
+    const email = inputs[2].value.trim();
+    const phone = inputs[3].value.trim();
+    const vehicleType = inputs[6].value.trim();
+    const capacity = inputs[7].value.trim();
+    const baseLocation = inputs[8].value.trim();
+    if (window.__convexSubmitTransportApp && state.user) {
+        window.__convexSubmitTransportApp({
+            company,
+            contactName: owner,
+            phone,
+            email,
+            vehicleType,
+            capacity,
+            baseLocation
+        }).catch(() => {});
+    }
+    showSuccess('Application Submitted!', 'Your fleet registration is under review. We will notify you after approval.', () => navigateTo('home'));
 }
 
 // ====== PROFILE ======
