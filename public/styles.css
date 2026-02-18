@@ -68,8 +68,9 @@ select { cursor: pointer; }
 .password-strength.medium { color: #f39c12; }
 .password-strength.strong { color: #27ae60; }
 .terms-row { margin: 10px 0 8px; }
-.terms-check { font-size: 0.85rem; color: var(--text-secondary); display:flex; align-items:center; gap:8px; }
-.terms-check input { accent-color: var(--primary); }
+.terms-check { font-size: 0.85rem; color: var(--text-secondary); display:flex; align-items:center; gap:8px; line-height: 1.2; }
+.terms-check input { accent-color: var(--primary); margin: 0; width: 16px; height: 16px; }
+.terms-check span { display: inline-flex; align-items: center; }
 .terms-check a { color: var(--primary); text-decoration: underline; }
 .terms-content { max-height: 55vh; overflow:auto; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
 .btn-danger { background: var(--danger); color: #fff; }

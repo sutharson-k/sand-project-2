@@ -6,3 +6,5 @@ dist/
 coverage/
 .vite/
 convex/_generated/
+localhost.pem
+localhost-key.pem

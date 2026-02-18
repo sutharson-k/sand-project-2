@@ -235,6 +235,9 @@ export default function App() {
       return;
     }
     if (isAuthenticated && viewer) {
+      if (profile === undefined || prefs === undefined) {
+        return;
+      }
       const nextUser = {
         id: viewer._id,
         name:
