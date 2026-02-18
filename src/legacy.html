@@ -89,6 +89,12 @@
                     <button type="submit" class="btn btn-primary btn-full">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </button>
+                    <div class="terms-row">
+                        <label class="terms-check">
+                            <input type="checkbox" id="login-terms-check">
+                            <span>I agree to the <a href="#" id="terms-link">Terms &amp; Conditions</a></span>
+                        </label>
+                    </div>
                     <button type="button" class="btn btn-outline btn-full btn-google" id="btn-google-auth">
                         <i class="fab fa-google"></i> Continue with Google
                     </button>
@@ -112,6 +118,7 @@
                     <div class="form-group">
                         <label><i class="fas fa-lock"></i> Password</label>
                         <input type="password" id="signup-password" placeholder="Create password" required>
+                        <div class="password-strength" id="signup-password-strength" aria-live="polite"></div>
                     </div>
                     <button type="submit" class="btn btn-primary btn-full">
                         <i class="fas fa-user-plus"></i> Create Account
@@ -182,6 +189,38 @@
                 <button class="btn btn-primary btn-full" onclick="confirmLocation()">
                     <i class="fas fa-check"></i> Confirm Location
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== TERMS MODAL ====== -->
+    <div class="modal-overlay" id="terms-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('terms-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-file-contract auth-logo-icon"></i>
+                    <h2>Terms &amp; Conditions</h2>
+                </div>
+                <div class="terms-content">
+                    This platform, Sandify, is a digital marketplace that connects buyers, suppliers, and transport providers for the ordering and delivery of construction materials including sand, aggregates, gravel, red soil and related materials. By accessing, browsing, registering, or using this platform in any way, the user agrees to be legally bound by all conditions stated herein and any applicable laws of India under the jurisdiction of Chennai, Tamil Nadu. If the user does not agree, they must immediately stop using the platform. The platform acts strictly as a technology intermediary and does not mine, store, transport, verify, or physically handle any materials. All transactions are direct agreements between the buyer, supplier and transporter, and the platform shall not be considered a party to such agreements.
+                    <br><br>
+                    The platform charges a standard commission fee of 10 percent on each successful transaction which may be deducted from supplier payouts or included in buyer pricing and may change at any time without prior notice. Additional service or listing fees may be applied at the discretion of the platform. Orders placed through the platform are considered binding once confirmed. Cancellation is only allowed before dispatch and may incur a cancellation charge of 5 percent of the order value after confirmation. Once the order has been dispatched, cancellation may not be permitted and in certain cases may incur a deduction of up to 30 percent depending on logistics and supplier terms. If delivery fails due to incorrect address, unavailability, refusal, or buyer fault, the buyer agrees to pay full transportation cost and an additional 10 percent penalty. Refunds, if approved, will be processed within 5 to 10 working days and may be returned through bank transfer or UPI. COD payments are not guaranteed to be refundable once unloading is complete. No refunds shall be provided for minor variations in quality, delays due to traffic, weather, mechanical failure, regulatory issues or any factors beyond control.
+                    <br><br>
+                    All suppliers on the platform agree they will only sell legally sourced materials and will comply with all local mining, environmental and transportation regulations, and will provide accurate descriptions, images, pricing and quantities. Failure to comply may result in penalties, suspension or permanent ban and possible reporting to legal authorities. Suppliers agree the platform may deduct its 10 percent commission automatically and that failure to dispatch orders on time, supplying incorrect materials or violating any policy may result in financial penalties or removal from the platform.
+                    <br><br>
+                    Transport providers agree that they hold valid licenses, vehicle documents, permits and insurance as required by Indian law and that they will deliver materials safely and honestly without tampering, theft or delay. Delivery confirmation may be completed using OTP verification or photographic proof and any damage, loss or spillage caused by transporter negligence shall be the transporter’s sole responsibility and liability.
+                    <br><br>
+                    Users are strictly prohibited from bypassing the platform to conduct private transactions to avoid commission, providing false information, engaging in illegal mining or transport, harassing or threatening other users, attempting to hack, scrape or disrupt the system, or engaging in fraudulent activities. Such actions may result in immediate suspension, permanent ban and possible legal action. The platform reserves the right to monitor activity, verify identity, cancel suspicious orders, suspend accounts, remove listings or report users to authorities at its sole discretion without prior notice.
+                    <br><br>
+                    The platform makes no guarantees regarding quality, legality, delivery time, availability, accuracy of listings, or reliability of users. All services are provided on an “as is” and “as available” basis and the user acknowledges use is entirely at their own risk. The platform shall not be liable for any direct, indirect, incidental or consequential damages, and even in cases where liability is established, the maximum liability of the platform shall not exceed the amount of commission earned from the relevant transaction.
+                    <br><br>
+                    The platform may use third party services such as payment gateways, hosting services, maps or communication providers and shall not be responsible for failures or downtime caused by such third parties or by technical errors, server issues, cyber attacks or maintenance activities.
+                    <br><br>
+                    The platform may collect and store personal data including name, phone number, address and transaction information for the purpose of order processing, communication, fraud prevention and service improvement and will take reasonable measures to protect such data but shall not be liable for breaches beyond its control and does not sell personal data to third parties.
+                    <br><br>
+                    The platform reserves the right to modify these terms at any time and continued use constitutes acceptance. These terms constitute the entire agreement and override any prior communication or agreement. All disputes are governed by the laws of India and subject exclusively to the jurisdiction of courts located in Chennai, Tamil Nadu.
+                </div>
             </div>
         </div>
     </div>
@@ -814,5 +853,4 @@
     <!-- ====== TOAST ====== -->
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="app.js"></script>
 

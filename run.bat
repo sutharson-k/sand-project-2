@@ -39,7 +39,17 @@ if not exist node_modules (
 )
 
 echo Starting dev server...
-call "%NPM_CMD%" run dev
-echo.
-echo Dev server exited with code %errorlevel%.
+start "Sandify Dev" cmd /k ""%NPM_CMD%" run dev"
+
+set "NGROK_EXE=C:\Users\Admin\AppData\Local\Microsoft\WindowsApps\ngrok.exe"
+if exist "%NGROK_EXE%" (
+  echo Starting ngrok tunnel...
+  timeout /t 3 /nobreak >nul
+  start "ngrok" "%NGROK_EXE%" http 5173
+  echo Share the ngrok URL shown in the ngrok window.
+) else (
+  echo ngrok not found at %NGROK_EXE%
+  echo Run: where ngrok
+  echo Then update run.bat with that path.
+)
 pause

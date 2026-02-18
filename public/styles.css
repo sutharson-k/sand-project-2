@@ -63,6 +63,15 @@ select { cursor: pointer; }
 .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
 .btn-outline:hover { background: var(--primary); color: #fff; }
 .btn-google { margin-top: 10px; display: flex; gap: 10px; justify-content: center; align-items: center; }
+.password-strength { margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary); }
+.password-strength.weak { color: #e74c3c; }
+.password-strength.medium { color: #f39c12; }
+.password-strength.strong { color: #27ae60; }
+.terms-row { margin: 10px 0 8px; }
+.terms-check { font-size: 0.85rem; color: var(--text-secondary); display:flex; align-items:center; gap:8px; }
+.terms-check input { accent-color: var(--primary); }
+.terms-check a { color: var(--primary); text-decoration: underline; }
+.terms-content { max-height: 55vh; overflow:auto; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-full { width: 100%; justify-content: center; }
 .btn-large { padding: 16px 32px; font-size: 1.05rem; }

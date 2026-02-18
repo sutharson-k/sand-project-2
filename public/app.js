@@ -78,6 +78,15 @@ function initApp() {
     document.getElementById('mobile-menu').addEventListener('click', () => {
         document.getElementById('nav-links').classList.toggle('show');
     });
+    document.querySelectorAll('.nav-link').forEach((link) => {
+        link.addEventListener('click', (e) => {
+            const page = link.dataset.page;
+            if (page === 'catalog' || page === 'seller') {
+                e.preventDefault();
+                navigateWithAuth(page);
+            }
+        });
+    });
     document.getElementById('profile-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         document.getElementById('profile-dropdown').classList.toggle('show');
@@ -104,6 +113,56 @@ function initApp() {
         localStorage.setItem('sandify_theme', t);
     });
     document.getElementById('btn-nav-location')?.addEventListener('click', () => openModal('location-modal'));
+    const termsLink = document.getElementById('terms-link');
+    if (termsLink) {
+        termsLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal('terms-modal');
+        });
+    }
+    const termsCheck = document.getElementById('login-terms-check');
+    const loginBtn = document.querySelector('#login-form button[type="submit"]');
+    if (termsCheck && loginBtn) {
+        loginBtn.disabled = !termsCheck.checked;
+        termsCheck.addEventListener('change', () => {
+            loginBtn.disabled = !termsCheck.checked;
+        });
+    }
+    ['btn-google-auth', 'btn-google-auth-signup'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const width = 520;
+            const height = 640;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+            const popupUrl = `${window.location.origin}/?authPopup=1`;
+            window.open(
+                popupUrl,
+                'sandify_google_auth',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+            );
+        });
+    });
+    const magicBtn = document.getElementById('btn-magic-link');
+    if (magicBtn) {
+        magicBtn.remove();
+    }
+    const signupPwd = document.getElementById('signup-password');
+    const strengthEl = document.getElementById('signup-password-strength');
+    if (signupPwd && strengthEl) {
+        const updateStrength = () => {
+            const pwd = signupPwd.value || '';
+            const score = passwordStrengthScore(pwd);
+            const label = score >= 3 ? 'Strong' : score === 2 ? 'Medium' : 'Weak';
+            strengthEl.textContent = `Password strength: ${label}`;
+            strengthEl.classList.remove('weak', 'medium', 'strong');
+            strengthEl.classList.add(label.toLowerCase());
+        };
+        signupPwd.addEventListener('input', updateStrength);
+        updateStrength();
+    }
 }
 
 if (document.readyState === 'loading') {
@@ -122,6 +181,12 @@ function handleHashRoute() {
 
 function navigateTo(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    if (page === 'catalog' && !state.user) {
+        document.getElementById('page-home').classList.add('active');
+        updateNavActive('home');
+        showAuth('login');
+        return;
+    }
     if (page === 'about') {
         document.getElementById('page-home').classList.add('active');
         setTimeout(() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -175,6 +240,10 @@ function showAuth(type) {
 
 function handleLogin(e) {
     e.preventDefault();
+    const termsCheck = document.getElementById('login-terms-check');
+    if (termsCheck && !termsCheck.checked) {
+        return toast('Please accept the Terms & Conditions', 'error');
+    }
     const email = document.getElementById('login-email').value;
     const pwd = document.getElementById('login-password').value;
     if (!email || !pwd) return toast('Please fill all fields', 'error');
@@ -208,6 +277,8 @@ function handleSignup(e) {
     const phone = document.getElementById('signup-phone').value;
     const pwd = document.getElementById('signup-password').value;
     if (!name || !email || !phone || !pwd) return toast('Please fill all fields', 'error');
+    if (pwd.length < 8) return toast('Password must be at least 8 characters', 'error');
+    if (passwordStrengthScore(pwd) < 2) return toast('Password strength must be Medium or stronger', 'error');
     if (window.__convexSignUpWithPassword) {
         window.__convexSignUpWithPassword(name, email, pwd)
             .then(() => {
@@ -219,17 +290,6 @@ function handleSignup(e) {
             });
         return;
     }
-    state.user = { name, email, phone, joined: new Date().toLocaleDateString('en-IN') };
-    localStorage.setItem('sandify_user', JSON.stringify(state.user));
-    showLoggedInUI();
-    closeModal('auth-modal');
-    toast('Welcome to Sandify, ' + name + '!', 'success');
-    if (!state.location) {
-        setTimeout(() => openModal('location-modal'), 500);
-    } else if (state.pendingAction) {
-        const act = state.pendingAction; state.pendingAction = null;
-        setTimeout(() => navigateWithAuth(act.page, act.extra), 300);
-    }
 }
 
 function handleLogout() {
@@ -237,7 +297,9 @@ function handleLogout() {
         window.__convexAuthSignOut();
     }
     state.user = null;
+    state.location = '';
     localStorage.removeItem('sandify_user');
+    localStorage.removeItem('sandify_location');
     document.getElementById('profile-wrapper').style.display = 'none';
     document.getElementById('btn-login').style.display = 'flex';
     document.getElementById('btn-nav-location').style.display = 'none';
@@ -291,6 +353,15 @@ function useCurrentLocation() {
     }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
+function passwordStrengthScore(pwd) {
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    return Math.min(score, 3);
+}
+
 function openProfileSetup(user) {
     if (!user) return;
     document.getElementById('profile-name').value = user.name || '';
@@ -305,7 +376,7 @@ function handleProfileSetup(e) {
     const email = document.getElementById('profile-email').value.trim();
     const phone = document.getElementById('profile-phone').value.trim();
     if (!name || !email || !phone) return toast('Please fill all fields', 'error');
-    if (window.__convexSaveProfile && state.user) {
+    if (window.__convexSaveProfile) {
         window.__convexSaveProfile({ name, email, phone });
     }
     state.user = { ...state.user, name, email, phone };
@@ -319,7 +390,7 @@ function confirmLocation() {
     if (!loc) return toast('Please enter a location', 'error');
     state.location = loc;
     localStorage.setItem('sandify_location', loc);
-    if (window.__convexSetPrefs && state.user) {
+    if (window.__convexSetPrefs) {
         window.__convexSetPrefs({ location: loc, theme: state.theme });
     }
     document.getElementById('nav-location-text').textContent = loc;
@@ -338,7 +409,7 @@ function applyTheme(theme) {
     if (toggle) toggle.checked = theme === 'light';
     state.theme = theme;
     localStorage.setItem('sandify_theme', theme);
-    if (window.__convexSetPrefs && state.user) {
+    if (window.__convexSetPrefs) {
         window.__convexSetPrefs({ location: state.location || '', theme });
     }
 }
@@ -369,7 +440,7 @@ function renderCatalog() {
 
 function sandCardHTML(s) {
     const imageContent = s.image
-        ? `<img src="${s.image}" alt="${s.name}" style="width:100%;height:100%;object-fit:cover;">`
+        ? `<img src="${s.image}" alt="${s.name}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
         : `<div class="sand-texture"></div><i class="fas ${s.icon}"></i>`;
     return `<div class="sand-card" onclick="viewSandDetail(${s.id})">
         <div class="sand-card-image" style="background:${s.color}">
@@ -397,7 +468,7 @@ function viewSandDetail(id) {
     state.selectedSand = sand;
     const container = document.getElementById('detail-container');
     const detailImageContent = sand.image
-        ? `<img src="${sand.image}" alt="${sand.name}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
+        ? `<img src="${sand.image}" alt="${sand.name}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
         : `<i class="fas ${sand.icon}"></i>`;
     container.innerHTML = `
         <div class="detail-grid">
@@ -426,6 +497,12 @@ function viewSandDetail(id) {
 
 // ====== DEALERS ======
 function goToDealers() {
+    if (!state.user) {
+        document.getElementById('page-home').classList.add('active');
+        updateNavActive('home');
+        showAuth('login');
+        return;
+    }
     if (!state.selectedSand) return;
     const list = document.getElementById('dealers-list');
     document.getElementById('dealer-subtitle').textContent = `Verified dealers for ${state.selectedSand.name}`;

@@ -63,6 +63,26 @@ export const listSandTypesWithUrls = query({
   },
 });
 
+export const bootstrap = query({
+  args: {},
+  handler: async (ctx) => {
+    const [sand, dealers, trucks] = await Promise.all([
+      ctx.db.query("sandTypes").collect(),
+      ctx.db.query("dealers").collect(),
+      ctx.db.query("trucks").collect(),
+    ]);
+    const sandWithUrls = await Promise.all(
+      sand.map(async (s) => {
+        const url = s.imageStorageId
+          ? await ctx.storage.getUrl(s.imageStorageId)
+          : null;
+        return { ...s, image: url ?? s.image };
+      }),
+    );
+    return { sandTypes: sandWithUrls, dealers, trucks };
+  },
+});
+
 export const listDealers = query({
   args: {},
   handler: async (ctx) => {
