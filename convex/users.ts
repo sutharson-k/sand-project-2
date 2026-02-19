@@ -118,3 +118,28 @@ export const getPrefs = query({
       .unique();
   },
 });
+
+export const adminStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { isAdmin: false };
+    }
+    const user = await ctx.db.get(userId);
+    const email = user?.email ?? "";
+    const allowlist = new Set([
+      "dr24072007@gmail.com",
+      "sutharsonmohan@gmail.com",
+    ]);
+    if (!allowlist.has(email)) {
+      return { isAdmin: false };
+    }
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .collect();
+    const hasGoogle = accounts.some((account) => account.provider === "google");
+    return { isAdmin: hasGoogle };
+  },
+});

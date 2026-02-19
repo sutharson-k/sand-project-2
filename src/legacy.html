@@ -12,6 +12,7 @@
                 <a href="#catalog" class="nav-link" data-page="catalog">Sand Catalog</a>
                 <a href="#seller" class="nav-link" data-page="seller">Become Partner</a>
                 <a href="#about" class="nav-link" data-page="about">About</a>
+                <a href="#admin" class="nav-link" data-page="admin" id="admin-nav-link" style="display:none;">Admin</a>
             </div>
             <div class="nav-actions">
                 <button class="btn-location" id="btn-nav-location" style="display:none;" title="Change Location">
@@ -192,6 +193,40 @@
             </div>
         </div>
     </div>
+
+    <!-- ====== ADMIN PANEL ====== -->
+    <section class="page" id="page-admin">
+        <div class="section-header">
+            <h1>Admin Panel</h1>
+            <p>Restricted access - Google login only</p>
+        </div>
+        <div class="admin-tabs">
+            <button class="admin-tab active" data-section="overview">Dashboard Overview</button>
+            <button class="admin-tab" data-section="sales">Sales</button>
+            <button class="admin-tab" data-section="orders">Orders</button>
+            <button class="admin-tab" data-section="users">Users</button>
+            <button class="admin-tab" data-section="sellers">Sellers</button>
+            <button class="admin-tab" data-section="logistics">Logistics</button>
+            <button class="admin-tab" data-section="payments">Payments</button>
+            <button class="admin-tab" data-section="analytics">Analytics</button>
+            <button class="admin-tab" data-section="ai">AI Verification</button>
+            <button class="admin-tab" data-section="settings">Settings</button>
+            <button class="admin-tab" data-section="security">Security Alerts</button>
+        </div>
+        <div class="admin-panel" id="admin-panel">
+            <div class="admin-cards" id="admin-overview"></div>
+            <div class="admin-list" id="admin-sales" style="display:none;"></div>
+            <div class="admin-list" id="admin-orders" style="display:none;"></div>
+            <div class="admin-list" id="admin-users" style="display:none;"></div>
+            <div class="admin-list" id="admin-sellers" style="display:none;"></div>
+            <div class="admin-list" id="admin-logistics" style="display:none;"></div>
+            <div class="admin-list" id="admin-payments" style="display:none;"></div>
+            <div class="admin-list" id="admin-analytics" style="display:none;"></div>
+            <div class="admin-list" id="admin-ai" style="display:none;"></div>
+            <div class="admin-list" id="admin-settings" style="display:none;"></div>
+            <div class="admin-list" id="admin-security" style="display:none;"></div>
+        </div>
+    </section>
 
     <!-- ====== TERMS MODAL ====== -->
     <div class="modal-overlay" id="terms-modal">

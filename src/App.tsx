@@ -7,10 +7,6 @@ import { api } from "../convex/_generated/api";
 export default function App() {
   const { signIn, signOut } = useAuthActions();
   const { isAuthenticated } = useConvexAuth();
-  const isAuthPopup = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("authPopup") === "1" || params.get("authPopupComplete") === "1";
-  }, []);
   const [bootstrapCache] = useState(() => {
     try {
       const raw = sessionStorage.getItem("sandify_bootstrap");
@@ -45,6 +41,14 @@ export default function App() {
     api.users.getPrefs,
     isAuthenticated ? {} : "skip",
   );
+  const adminStatus = useQuery(
+    api.users.adminStatus,
+    isAuthenticated ? {} : "skip",
+  );
+  const adminBundle = useQuery(
+    api.admin.adminBundle,
+    isAuthenticated ? {} : "skip",
+  );
   const orders = useQuery(
     api.sand.listOrders,
     isAuthenticated ? {} : "skip",
@@ -73,24 +77,7 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", "dark");
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("authPopupComplete") === "1" && window.opener) {
-      window.opener.location.reload();
-      window.close();
-      return;
-    }
-    if (
-      params.get("authPopup") === "1" &&
-      window.opener &&
-      window.name === "sandify_google_auth"
-    ) {
-      void signIn("google", {
-        flow: "signIn",
-        redirectTo: `${window.location.origin}/?authPopupComplete=1`,
-      });
-    }
-  }, [signIn]);
+  useEffect(() => {}, []);
 
   useEffect(() => {
     if (bootstrap?.sandTypes && bootstrap?.dealers && bootstrap?.trucks) {
@@ -104,9 +91,6 @@ export default function App() {
 
   useEffect(() => {
     const data = bootstrapRef.current ?? bootstrap;
-    if (isAuthPopup) {
-      return;
-    }
     if (!data?.sandTypes || !data?.dealers || !data?.trucks) {
       return;
     }
@@ -287,10 +271,15 @@ export default function App() {
       localStorage.setItem("sandify_orders", JSON.stringify(orders));
       (window as any).renderOrders?.();
     }
-  }, [isAuthenticated, viewer, profile, prefs, orders]);
+    if (adminStatus) {
+      (window as any).__isAdmin = adminStatus.isAdmin;
+      (window as any).updateAdminUI?.();
+    }
+    if (adminBundle?.ok) {
+      (window as any).__adminData = adminBundle;
+      (window as any).renderAdmin?.();
+    }
+  }, [isAuthenticated, viewer, profile, prefs, orders, adminStatus, adminBundle]);
 
-  if (isAuthPopup) {
-    return <div />;
-  }
   return <div dangerouslySetInnerHTML={legacyRoot} />;
 }

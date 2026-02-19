@@ -84,7 +84,25 @@ function initApp() {
             if (page === 'catalog' || page === 'seller') {
                 e.preventDefault();
                 navigateWithAuth(page);
+                return;
             }
+            if (page === 'admin') {
+                e.preventDefault();
+                navigateTo('admin');
+                return;
+            }
+        });
+    });
+    document.querySelectorAll('.admin-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const section = tab.dataset.section;
+            document.querySelectorAll('.admin-tab').forEach((t) => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('#admin-panel > div').forEach((panel) => {
+                panel.style.display = 'none';
+            });
+            const target = document.getElementById(`admin-${section}`);
+            if (target) target.style.display = 'block';
         });
     });
     document.getElementById('profile-btn')?.addEventListener('click', (e) => {
@@ -133,16 +151,9 @@ function initApp() {
         if (!btn) return;
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const width = 520;
-            const height = 640;
-            const left = window.screenX + (window.outerWidth - width) / 2;
-            const top = window.screenY + (window.outerHeight - height) / 2;
-            const popupUrl = `${window.location.origin}/?authPopup=1`;
-            window.open(
-                popupUrl,
-                'sandify_google_auth',
-                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-            );
+            if (window.__convexAuthSignIn) {
+                window.__convexAuthSignIn('google', { flow: 'signIn', redirectTo: '/' });
+            }
         });
     });
     const magicBtn = document.getElementById('btn-magic-link');
@@ -162,6 +173,87 @@ function initApp() {
         };
         signupPwd.addEventListener('input', updateStrength);
         updateStrength();
+    }
+}
+
+function updateAdminUI() {
+    const adminLink = document.getElementById('admin-nav-link');
+    if (!adminLink) return;
+    const isAdmin = window.__isAdmin === true;
+    adminLink.style.display = isAdmin ? 'inline-flex' : 'none';
+}
+
+function renderAdmin() {
+    const data = window.__adminData;
+    if (!data || !data.ok) return;
+    const overview = document.getElementById('admin-overview');
+    if (overview) {
+        overview.innerHTML = `
+            <div class="admin-card"><strong>${data.totals.users}</strong><div>Total Users</div></div>
+            <div class="admin-card"><strong>${data.totals.orders}</strong><div>Total Orders</div></div>
+            <div class="admin-card"><strong>${data.totals.sellers}</strong><div>Seller Applications</div></div>
+            <div class="admin-card"><strong>${data.totals.transporters}</strong><div>Transport Applications</div></div>
+        `;
+    }
+    const orders = document.getElementById('admin-orders');
+    if (orders) {
+        orders.innerHTML = data.orders.map((o) => `
+            <div class="admin-row"><span>${o.orderNumber}</span><span>${o.status}</span></div>
+        `).join('') || '<div class="admin-row">No orders</div>';
+    }
+    const users = document.getElementById('admin-users');
+    if (users) {
+        const seen = new Set();
+        const uniqueUsers = data.users.filter((u) => {
+            const key = u.email || u._id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        users.innerHTML = uniqueUsers.map((u) => `
+            <div class="admin-row"><span>${u.email || 'Unknown'}</span><span>${new Date(u._creationTime).toLocaleDateString('en-IN')}</span></div>
+        `).join('') || '<div class="admin-row">No users</div>';
+    }
+    const sellers = document.getElementById('admin-sellers');
+    if (sellers) {
+        sellers.innerHTML = data.sellerApps.map((s) => `
+            <div class="admin-row"><span>${s.company}</span><span>${s.status}</span></div>
+        `).join('') || '<div class="admin-row">No seller applications</div>';
+    }
+    const logistics = document.getElementById('admin-logistics');
+    if (logistics) {
+        logistics.innerHTML = data.transportApps.map((t) => `
+            <div class="admin-row"><span>${t.company}</span><span>${t.status}</span></div>
+        `).join('') || '<div class="admin-row">No transport applications</div>';
+    }
+    const payments = document.getElementById('admin-payments');
+    if (payments) {
+        payments.innerHTML = data.orders.map((o) => `
+            <div class="admin-row"><span>${o.orderNumber}</span><span>${o.paymentMethod || 'N/A'}</span></div>
+        `).join('') || '<div class="admin-row">No payments</div>';
+    }
+    const analytics = document.getElementById('admin-analytics');
+    if (analytics) {
+        analytics.innerHTML = Object.entries(data.analytics || {}).map(([k, v]) => `
+            <div class="admin-row"><span>${k}</span><span>${v}</span></div>
+        `).join('') || '<div class="admin-row">No analytics</div>';
+    }
+    const sales = document.getElementById('admin-sales');
+    if (sales) {
+        const total = (data.orders || []).reduce((sum, o) => sum + (o.total || 0), 0);
+        sales.innerHTML = `<div class="admin-row"><span>Total Revenue</span><span>₹${total.toLocaleString('en-IN')}</span></div>`;
+    }
+    const ai = document.getElementById('admin-ai');
+    if (ai) {
+        ai.innerHTML = '<div class="admin-row">AI Verification pipeline pending</div>';
+    }
+    const settings = document.getElementById('admin-settings');
+    if (settings) {
+        settings.innerHTML = '<div class="admin-row">Settings controls pending</div>';
+    }
+    const security = document.getElementById('admin-security');
+    if (security) {
+        security.innerHTML = '<div class="admin-row">No alerts</div>';
     }
 }
 
@@ -186,6 +278,15 @@ function navigateTo(page) {
         updateNavActive('home');
         showAuth('login');
         return;
+    }
+    if (page === 'admin') {
+        if (!window.__isAdmin) {
+            document.getElementById('page-home').classList.add('active');
+            updateNavActive('home');
+            showAuth('login');
+            toast('Admin access only (Google login)', 'error');
+            return;
+        }
     }
     if (page === 'about') {
         document.getElementById('page-home').classList.add('active');
@@ -242,6 +343,7 @@ function handleLogin(e) {
     e.preventDefault();
     const termsCheck = document.getElementById('login-terms-check');
     if (termsCheck && !termsCheck.checked) {
+        openModal('terms-modal');
         return toast('Please accept the Terms & Conditions', 'error');
     }
     const email = document.getElementById('login-email').value;
@@ -649,6 +751,9 @@ function goToPayment(total) {
             <div class="payment-method">
                 <label class="payment-option selected" onclick="selectPayment(this)">
                     <input type="radio" name="payment" checked> <i class="fas fa-mobile-alt"></i> <span>UPI / Google Pay / PhonePe</span>
+                    <div class="upi-qr-wrap">
+                        <img src="/images/upi.jpeg" alt="UPI QR" class="upi-qr">
+                    </div>
                 </label>
                 <label class="payment-option" onclick="selectPayment(this)">
                     <input type="radio" name="payment"> <i class="fas fa-credit-card"></i> <span>Credit / Debit Card</span>
@@ -914,3 +1019,5 @@ function animateCounters() {
         }, 30);
     });
 }
+window.updateAdminUI = updateAdminUI;
+window.renderAdmin = renderAdmin;
