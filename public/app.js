@@ -50,6 +50,8 @@ const trucks = window.__trucksData || [
     { id: 4, name: "Trailer Truck (20 Ton)", icon: "fa-trailer", capacity: "Up to 20 tons", eta: "1-2 days", baseCost: 6000, perTon: 100 },
     { id: 5, name: "Bulk Carrier (30 Ton)", icon: "fa-truck-monster", capacity: "Up to 30 tons", eta: "2-3 days", baseCost: 8000, perTon: 80 }
 ];
+let sellerListings = window.__sellerListingsData || [];
+let transporters = window.__transportersData || [];
 
 // ====== STATE ======
 let state = {
@@ -88,21 +90,9 @@ function initApp() {
             }
             if (page === 'admin') {
                 e.preventDefault();
-                navigateTo('admin');
+                window.location.hash = 'admin';
                 return;
             }
-        });
-    });
-    document.querySelectorAll('.admin-tab').forEach((tab) => {
-        tab.addEventListener('click', () => {
-            const section = tab.dataset.section;
-            document.querySelectorAll('.admin-tab').forEach((t) => t.classList.remove('active'));
-            tab.classList.add('active');
-            document.querySelectorAll('#admin-panel > div').forEach((panel) => {
-                panel.style.display = 'none';
-            });
-            const target = document.getElementById(`admin-${section}`);
-            if (target) target.style.display = 'block';
         });
     });
     document.getElementById('profile-btn')?.addEventListener('click', (e) => {
@@ -183,79 +173,107 @@ function updateAdminUI() {
     adminLink.style.display = isAdmin ? 'inline-flex' : 'none';
 }
 
-function renderAdmin() {
-    const data = window.__adminData;
+function updatePartnerUI() {
+    const sellerLink = document.getElementById('seller-dashboard-link');
+    const transportLink = document.getElementById('transport-dashboard-link');
+    if (!sellerLink || !transportLink) return;
+    const status = window.__partnerStatus || { seller: false, transporter: false };
+    sellerLink.style.display = status.seller ? 'flex' : 'none';
+    transportLink.style.display = status.transporter ? 'flex' : 'none';
+}
+
+function renderAdminSummary() {
+    const data = window.__adminSnapshot;
     if (!data || !data.ok) return;
-    const overview = document.getElementById('admin-overview');
-    if (overview) {
-        overview.innerHTML = `
-            <div class="admin-card"><strong>${data.totals.users}</strong><div>Total Users</div></div>
-            <div class="admin-card"><strong>${data.totals.orders}</strong><div>Total Orders</div></div>
-            <div class="admin-card"><strong>${data.totals.sellers}</strong><div>Seller Applications</div></div>
-            <div class="admin-card"><strong>${data.totals.transporters}</strong><div>Transport Applications</div></div>
-        `;
-    }
-    const orders = document.getElementById('admin-orders');
-    if (orders) {
-        orders.innerHTML = data.orders.map((o) => `
+    const totalUsers = document.getElementById('admin-total-users');
+    const totalOrders = document.getElementById('admin-total-orders');
+    const totalSellers = document.getElementById('admin-total-sellers');
+    const totalTransport = document.getElementById('admin-total-transport');
+    if (totalUsers) totalUsers.textContent = `Users: ${data.totals.users}`;
+    if (totalOrders) totalOrders.textContent = `Orders: ${data.totals.orders}`;
+    if (totalSellers) totalSellers.textContent = `Sellers: ${data.totals.sellers}`;
+    if (totalTransport) totalTransport.textContent = `Transport: ${data.totals.transporters}`;
+
+    const latest = document.getElementById('admin-latest-orders');
+    if (latest) {
+        latest.innerHTML = data.latestOrders.map((o) => `
             <div class="admin-row"><span>${o.orderNumber}</span><span>${o.status}</span></div>
-        `).join('') || '<div class="admin-row">No orders</div>';
+        `).join('') || '<div class="admin-row">No recent orders</div>';
     }
-    const users = document.getElementById('admin-users');
-    if (users) {
-        const seen = new Set();
-        const uniqueUsers = data.users.filter((u) => {
-            const key = u.email || u._id;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-        users.innerHTML = uniqueUsers.map((u) => `
-            <div class="admin-row"><span>${u.email || 'Unknown'}</span><span>${new Date(u._creationTime).toLocaleDateString('en-IN')}</span></div>
-        `).join('') || '<div class="admin-row">No users</div>';
-    }
-    const sellers = document.getElementById('admin-sellers');
+    const sellers = document.getElementById('admin-latest-sellers');
     if (sellers) {
-        sellers.innerHTML = data.sellerApps.map((s) => `
-            <div class="admin-row"><span>${s.company}</span><span>${s.status}</span></div>
+        sellers.innerHTML = data.latestSellers.map((s) => `
+            <div class="admin-row" data-app-id="${s._id}" data-kind="seller">
+                <span>${s.company}</span>
+                <span class="admin-status">${s.status}</span>
+                ${s.status === 'pending' ? `
+                    <span class="admin-actions">
+                        <button class="admin-btn admin-approve" data-status="approved">Approve</button>
+                        <button class="admin-btn admin-reject" data-status="rejected">Reject</button>
+                    </span>
+                ` : ''}
+            </div>
         `).join('') || '<div class="admin-row">No seller applications</div>';
     }
-    const logistics = document.getElementById('admin-logistics');
-    if (logistics) {
-        logistics.innerHTML = data.transportApps.map((t) => `
-            <div class="admin-row"><span>${t.company}</span><span>${t.status}</span></div>
+    const transporters = document.getElementById('admin-latest-transporters');
+    if (transporters) {
+        transporters.innerHTML = data.latestTransporters.map((t) => `
+            <div class="admin-row" data-app-id="${t._id}" data-kind="transport">
+                <span>${t.company}</span>
+                <span class="admin-status">${t.status}</span>
+                ${t.status === 'pending' ? `
+                    <span class="admin-actions">
+                        <button class="admin-btn admin-approve" data-status="approved">Approve</button>
+                        <button class="admin-btn admin-reject" data-status="rejected">Reject</button>
+                    </span>
+                ` : ''}
+            </div>
         `).join('') || '<div class="admin-row">No transport applications</div>';
     }
-    const payments = document.getElementById('admin-payments');
-    if (payments) {
-        payments.innerHTML = data.orders.map((o) => `
-            <div class="admin-row"><span>${o.orderNumber}</span><span>${o.paymentMethod || 'N/A'}</span></div>
-        `).join('') || '<div class="admin-row">No payments</div>';
-    }
-    const analytics = document.getElementById('admin-analytics');
-    if (analytics) {
-        analytics.innerHTML = Object.entries(data.analytics || {}).map(([k, v]) => `
-            <div class="admin-row"><span>${k}</span><span>${v}</span></div>
-        `).join('') || '<div class="admin-row">No analytics</div>';
-    }
-    const sales = document.getElementById('admin-sales');
-    if (sales) {
-        const total = (data.orders || []).reduce((sum, o) => sum + (o.total || 0), 0);
-        sales.innerHTML = `<div class="admin-row"><span>Total Revenue</span><span>₹${total.toLocaleString('en-IN')}</span></div>`;
-    }
-    const ai = document.getElementById('admin-ai');
-    if (ai) {
-        ai.innerHTML = '<div class="admin-row">AI Verification pipeline pending</div>';
-    }
-    const settings = document.getElementById('admin-settings');
-    if (settings) {
-        settings.innerHTML = '<div class="admin-row">Settings controls pending</div>';
-    }
-    const security = document.getElementById('admin-security');
-    if (security) {
-        security.innerHTML = '<div class="admin-row">No alerts</div>';
-    }
+    bindAdminActions();
 }
+
+function bindAdminActions() {
+    if (window.__adminActionsBound) return;
+    window.__adminActionsBound = true;
+    const attach = (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('button.admin-btn');
+            if (!btn) return;
+            const row = btn.closest('.admin-row');
+            if (!row) return;
+            const appId = row.dataset.appId;
+            const kind = row.dataset.kind;
+            const status = btn.dataset.status;
+            if (!appId || !kind || !status) return;
+            const update = kind === 'seller'
+                ? window.__convexUpdateSellerAppStatus
+                : window.__convexUpdateTransportAppStatus;
+            if (!update) {
+                toast('Admin action not available', 'error');
+                return;
+            }
+            btn.disabled = true;
+            update({ applicationId: appId, status })
+                .then(() => {
+                    const statusEl = row.querySelector('.admin-status');
+                    if (statusEl) statusEl.textContent = status;
+                    const actions = row.querySelector('.admin-actions');
+                    if (actions) actions.remove();
+                    toast(`Application ${status}`, 'success');
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    toast('Unable to update application', 'error');
+                });
+        });
+    };
+    attach('admin-latest-sellers');
+    attach('admin-latest-transporters');
+}
+
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);
@@ -540,9 +558,18 @@ function renderCatalog() {
     grid.innerHTML = filtered.map(s => sandCardHTML(s)).join('');
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function sandCardHTML(s) {
     const imageContent = s.image
-        ? `<img src="${s.image}" alt="${s.name}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
+        ? `<img src="${s.image}" alt="${escapeHtml(s.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
         : `<div class="sand-texture"></div><i class="fas ${s.icon}"></i>`;
     return `<div class="sand-card" onclick="viewSandDetail(${s.id})">
         <div class="sand-card-image" style="background:${s.color}">
@@ -550,7 +577,7 @@ function sandCardHTML(s) {
         </div>
         <div class="sand-card-body">
             <div class="sand-cat">${s.category.charAt(0).toUpperCase() + s.category.slice(1)}</div>
-            <h3>${s.name}</h3>
+            <h3>${escapeHtml(s.name)}</h3>
             <div class="sand-price">₹${s.price.toLocaleString('en-IN')} <span>/ton</span></div>
         </div>
     </div>`;
@@ -568,9 +595,22 @@ function viewSandDetail(id) {
     const sand = sandTypes.find(s => s.id === id);
     if (!sand) return;
     state.selectedSand = sand;
+    const sandKey = String(sand.dbId || sand._id || sand.id);
+    const sellersForSand = sellerListings.filter(l => String(l.sandId) === sandKey);
+    const sellersHtml = sellersForSand.length
+        ? `<div class="detail-sellers">
+            <h4>Available Sellers</h4>
+            ${sellersForSand.map(s => `
+                <div class="detail-seller-row">
+                    <span>${escapeHtml(s.company)}</span>
+                    <span>₹${Number(s.price).toLocaleString('en-IN')}/ton</span>
+                </div>
+            `).join('')}
+        </div>`
+        : `<div class="detail-sellers empty">No sellers listed yet.</div>`;
     const container = document.getElementById('detail-container');
     const detailImageContent = sand.image
-        ? `<img src="${sand.image}" alt="${sand.name}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
+        ? `<img src="${sand.image}" alt="${escapeHtml(sand.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
         : `<i class="fas ${sand.icon}"></i>`;
     container.innerHTML = `
         <div class="detail-grid">
@@ -579,16 +619,17 @@ function viewSandDetail(id) {
             </div>
             <div class="detail-info">
                 <div class="detail-cat">${sand.category.charAt(0).toUpperCase() + sand.category.slice(1)}</div>
-                <h1>${sand.name}</h1>
+                <h1>${escapeHtml(sand.name)}</h1>
                 <div class="detail-price">₹${sand.price.toLocaleString('en-IN')} <span>/ton</span></div>
-                <p class="detail-desc">${sand.desc}</p>
+                <p class="detail-desc">${escapeHtml(sand.desc)}</p>
                 <div class="detail-specs">
-                    <div class="spec-item"><div class="spec-label">Grain Size</div><div class="spec-value">${sand.grain}</div></div>
-                    <div class="spec-item"><div class="spec-label">Moisture</div><div class="spec-value">${sand.moisture}</div></div>
-                    <div class="spec-item"><div class="spec-label">Density</div><div class="spec-value">${sand.density}</div></div>
-                    <div class="spec-item"><div class="spec-label">Origin</div><div class="spec-value">${sand.origin}</div></div>
+                    <div class="spec-item"><div class="spec-label">Grain Size</div><div class="spec-value">${escapeHtml(sand.grain)}</div></div>
+                    <div class="spec-item"><div class="spec-label">Moisture</div><div class="spec-value">${escapeHtml(sand.moisture)}</div></div>
+                    <div class="spec-item"><div class="spec-label">Density</div><div class="spec-value">${escapeHtml(sand.density)}</div></div>
+                    <div class="spec-item"><div class="spec-label">Origin</div><div class="spec-value">${escapeHtml(sand.origin)}</div></div>
                 </div>
-                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px"><strong>Applications:</strong> ${sand.uses}</p>
+                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px"><strong>Applications:</strong> ${escapeHtml(sand.uses)}</p>
+                ${sellersHtml}
                 <button class="btn btn-primary btn-large btn-full" onclick="goToDealers()">
                     <i class="fas fa-shopping-cart"></i> Order This Sand
                 </button>
@@ -606,16 +647,23 @@ function goToDealers() {
         return;
     }
     if (!state.selectedSand) return;
+    const sandKey = String(state.selectedSand.dbId || state.selectedSand._id || state.selectedSand.id);
+    const listings = sellerListings.filter(l => String(l.sandId) === sandKey);
     const list = document.getElementById('dealers-list');
-    document.getElementById('dealer-subtitle').textContent = `Verified dealers for ${state.selectedSand.name}`;
-    list.innerHTML = dealers.map(d => {
-        const price = Math.round(state.selectedSand.price * d.priceMultiplier);
-        return `<div class="dealer-card" onclick="selectDealer(${d.id}, ${price}, this)">
-            <div class="dealer-avatar" style="background:${d.bg}">${d.name.charAt(0)}</div>
+    document.getElementById('dealer-subtitle').textContent = `Verified sellers for ${state.selectedSand.name}`;
+    if (listings.length === 0) {
+        list.innerHTML = '<div class="no-results"><i class="fas fa-store"></i><h3>No sellers yet</h3><p>Please check back soon.</p></div>';
+        navigateTo('dealers');
+        return;
+    }
+    list.innerHTML = listings.map(d => {
+        const price = Number(d.price);
+        return `<div class="dealer-card" onclick="selectDealer('${d.listingId}', ${price}, this)">
+            <div class="dealer-avatar" style="background:${state.selectedSand.color}">${escapeHtml(d.company).charAt(0)}</div>
             <div class="dealer-info">
-                <h3>${d.name}</h3>
-                <div class="dealer-location"><i class="fas fa-map-marker-alt"></i> ${d.location}</div>
-                <div class="dealer-rating">${'★'.repeat(Math.floor(d.rating))}${'☆'.repeat(5 - Math.floor(d.rating))} ${d.rating} (${d.reviews} reviews)</div>
+                <h3>${escapeHtml(d.company)}</h3>
+                <div class="dealer-location"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(d.location)}</div>
+                <div class="dealer-rating">Verified Seller</div>
             </div>
             <div class="dealer-price">
                 <div class="price">₹${price.toLocaleString('en-IN')}</div>
@@ -627,7 +675,16 @@ function goToDealers() {
 }
 
 function selectDealer(id, price, el) {
-    state.selectedDealer = { ...dealers.find(d => d.id === id), finalPrice: price };
+    const listing = sellerListings.find(d => String(d.listingId) === String(id));
+    if (!listing) return;
+    state.selectedDealer = {
+        id: listing.listingId,
+        name: listing.company,
+        location: listing.location,
+        sellerId: listing.sellerId,
+        sandId: listing.sandId,
+        finalPrice: price
+    };
     document.querySelectorAll('.dealer-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     setTimeout(() => goToTransport(), 400);
@@ -636,12 +693,22 @@ function selectDealer(id, price, el) {
 // ====== TRANSPORT ======
 function goToTransport() {
     const list = document.getElementById('transport-list');
-    list.innerHTML = trucks.map(t => {
+    const available = transporters.length ? transporters : trucks.map(t => ({
+        id: t.id,
+        transporterId: null,
+        company: t.name,
+        baseCost: t.baseCost,
+        perTon: t.perTon,
+        eta: t.eta,
+        icon: t.icon,
+        capacity: t.capacity
+    }));
+    list.innerHTML = available.map(t => {
         const cost = t.baseCost + (t.perTon * state.orderQuantity);
-        return `<div class="transport-card" onclick="selectTruck(${t.id}, this)">
+        return `<div class="transport-card" onclick="selectTruck('${t.transporterId ?? t.id}', this)">
             <div class="transport-icon"><i class="fas ${t.icon}"></i></div>
             <div class="transport-info">
-                <h3>${t.name}</h3>
+                <h3>${t.company || t.name}</h3>
                 <p><i class="fas fa-box"></i> ${t.capacity} &nbsp;|&nbsp; <i class="fas fa-clock"></i> ${t.eta}</p>
             </div>
             <div class="transport-price">
@@ -654,7 +721,8 @@ function goToTransport() {
 }
 
 function selectTruck(id, el) {
-    state.selectedTruck = trucks.find(t => t.id === id);
+    const found = transporters.find(t => String(t.transporterId) === String(id));
+    state.selectedTruck = found || trucks.find(t => String(t.id) === String(id));
     document.querySelectorAll('.transport-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     setTimeout(() => goToOrderForm(), 400);
@@ -751,9 +819,6 @@ function goToPayment(total) {
             <div class="payment-method">
                 <label class="payment-option selected" onclick="selectPayment(this)">
                     <input type="radio" name="payment" checked> <i class="fas fa-mobile-alt"></i> <span>UPI / Google Pay / PhonePe</span>
-                    <div class="upi-qr-wrap">
-                        <img src="/images/upi.jpeg" alt="UPI QR" class="upi-qr">
-                    </div>
                 </label>
                 <label class="payment-option" onclick="selectPayment(this)">
                     <input type="radio" name="payment"> <i class="fas fa-credit-card"></i> <span>Credit / Debit Card</span>
@@ -765,9 +830,12 @@ function goToPayment(total) {
                     <input type="radio" name="payment"> <i class="fas fa-money-bill-wave"></i> <span>Cash on Delivery</span>
                 </label>
             </div>
-            <button class="btn btn-primary btn-full btn-large" onclick="processPayment(${total})">
-                <i class="fas fa-lock"></i> Pay ₹${total.toLocaleString('en-IN')}
-            </button>
+            <div id="payment-confirm-wrap" style="display:block;margin-top:16px;">
+                <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">Selected: <span class="confirm-method">UPI / Google Pay / PhonePe</span></div>
+                <button class="btn btn-primary btn-full btn-large" onclick="processPayment(${total})">
+                    <i class="fas fa-lock"></i> Confirm & Pay ₹${total.toLocaleString('en-IN')}
+                </button>
+            </div>
         </div>`;
     navigateTo('payment');
 }
@@ -776,15 +844,39 @@ function selectPayment(el) {
     document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
     el.classList.add('selected');
     el.querySelector('input').checked = true;
+    const method = el.innerText.trim().split('\n')[0] || 'UPI';
+    const confirmWrap = document.getElementById('payment-confirm-wrap');
+    if (confirmWrap) {
+        confirmWrap.style.display = 'block';
+        confirmWrap.querySelector('.confirm-method').textContent = method;
+    }
 }
 
 function processPayment(total) {
+    const methodLabel = document.querySelector('input[name="payment"]:checked')?.closest('.payment-option')?.innerText?.trim() || 'UPI';
+    const lowerMethod = methodLabel.toLowerCase();
+    if (lowerMethod.includes('upi')) {
+        openUpiWindow(total);
+        return;
+    }
+    if (lowerMethod.includes('credit') || lowerMethod.includes('debit')) {
+        openCardWindow(total);
+        return;
+    }
+    if (lowerMethod.includes('net banking')) {
+        openNetBankingWindow(total);
+        return;
+    }
+    if (lowerMethod.includes('cash') || lowerMethod.includes('cod')) {
+        openCodWindow(total);
+        return;
+    }
     const orderId = 'SND' + Date.now().toString().slice(-8);
     const orderNumber = 'ORD-' + Date.now().toString().slice(-10);
-    const paymentMethod = document.querySelector('input[name="payment"]:checked')?.closest('.payment-option')?.innerText?.trim() || 'UPI';
+    const paymentMethod = methodLabel;
     const order = {
         id: orderId, orderNumber, sand: state.selectedSand.name, dealer: state.selectedDealer.name,
-        transport: state.selectedTruck.name, quantity: state.orderQuantity,
+        transport: (state.selectedTruck.company || state.selectedTruck.name), quantity: state.orderQuantity,
         total, date: new Date().toLocaleDateString('en-IN'), status: 'processing',
         color: state.selectedSand.color, icon: state.selectedSand.icon
     };
@@ -794,19 +886,219 @@ function processPayment(total) {
         const address = document.getElementById('order-address')?.value || '';
         window.__convexCreateOrder({
             orderNumber,
+            sandId: state.selectedSand.dbId,
+            sellerId: state.selectedDealer.sellerId || undefined,
+            transporterId: state.selectedTruck.transporterId || undefined,
             sandName: state.selectedSand.name,
             dealerName: state.selectedDealer.name,
-            truckName: state.selectedTruck.name,
+            truckName: (state.selectedTruck.company || state.selectedTruck.name),
             quantity: state.orderQuantity,
             total,
             paymentMethod,
-            address
+            address,
+            pickupLocation: state.selectedDealer.location || ''
         }).then((dbId) => {
             order.dbId = dbId;
             localStorage.setItem('sandify_orders', JSON.stringify(state.orders));
         }).catch(() => {});
     }
     showSuccess('Payment Successful!', `Order #${orderNumber} confirmed. Your sand is being prepared for dispatch.`, () => goToTracking(orderId));
+}
+
+function openUpiWindow(total) {
+    const win = window.open('', '_blank');
+    if (!win) {
+        return toast('Popup blocked. Allow popups to pay via UPI.', 'error');
+    }
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    win.document.write(`
+        <html>
+        <head>
+            <title>UPI Payment</title>
+            <style>
+                body { font-family: 'Work Sans', Arial, sans-serif; background:linear-gradient(160deg,#f8efe1,#e4c9a6); color:#2b2014; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+                .card { background:#fff7ec; padding:24px; border-radius:20px; width:320px; box-shadow:0 24px 50px rgba(43,32,20,0.18); text-align:center; border:1px solid #e7d2b8; }
+                h3 { margin:0 0 6px; letter-spacing:0.12rem; text-transform:uppercase; font-size:14px; color:#7a5a3a; }
+                img { width:220px; height:220px; object-fit:cover; border-radius:14px; border:1px solid #e0d3c0; background:#fff; }
+                .timer { margin-top:16px; font-size:14px; color:#7a6650; }
+                .amount { font-size:20px; font-weight:700; margin:10px 0 12px; color:#3b2a18; }
+                .btn { margin-top:16px; padding:10px 16px; border-radius:999px; border:none; background:#2b2014; color:#fff; font-weight:700; cursor:pointer; width:100%; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3>Pay with UPI</h3>
+                <div class="amount">₹${total.toLocaleString('en-IN')}</div>
+                <img src="/images/upi.jpeg" alt="UPI QR" />
+                <div class="timer" id="timer">10:00</div>
+                <button class="btn" id="paidBtn">I have paid</button>
+            </div>
+            <script>
+                const expiresAt = ${expiresAt};
+                const timerEl = document.getElementById('timer');
+                const interval = setInterval(() => {
+                    const diff = Math.max(0, expiresAt - Date.now());
+                    const min = String(Math.floor(diff / 60000)).padStart(2,'0');
+                    const sec = String(Math.floor((diff % 60000) / 1000)).padStart(2,'0');
+                    timerEl.textContent = min + ':' + sec;
+                    if (diff <= 0) {
+                        clearInterval(interval);
+                        window.close();
+                    }
+                }, 1000);
+                document.getElementById('paidBtn').addEventListener('click', () => {
+                    window.close();
+                });
+            </script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function openCardWindow(total) {
+    const win = window.open('', '_blank');
+    if (!win) {
+        return toast('Popup blocked. Allow popups to pay by card.', 'error');
+    }
+    win.document.write(`
+        <html>
+        <head>
+            <title>Card Payment</title>
+            <style>
+                body { font-family: 'Work Sans', Arial, sans-serif; background:linear-gradient(160deg,#f8efe1,#e4c9a6); color:#2b2014; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+                .card { background:#fff7ec; padding:24px; border-radius:20px; width:360px; box-shadow:0 24px 50px rgba(43,32,20,0.18); border:1px solid #e7d2b8; }
+                h3 { margin:0 0 6px; letter-spacing:0.12rem; text-transform:uppercase; font-size:14px; color:#7a5a3a; }
+                .row { display:flex; gap:10px; }
+                input, select { width:100%; padding:10px 12px; margin-top:10px; border-radius:10px; border:1px solid #e0d3c0; background:#fff; }
+                .amount { font-size:18px; font-weight:700; margin:8px 0 12px; color:#3b2a18; }
+                .btn { margin-top:14px; padding:10px 16px; border-radius:999px; border:none; background:#2b2014; color:#fff; font-weight:700; cursor:pointer; width:100%; }
+                label { font-size:12px; color:#7a6650; display:block; margin-top:10px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3>Pay by Card</h3>
+                <div class="amount">₹${total.toLocaleString('en-IN')}</div>
+                <label>Card Type</label>
+                <select>
+                    <option>Visa</option>
+                    <option>Mastercard</option>
+                    <option>RuPay</option>
+                    <option>American Express</option>
+                </select>
+                <label>Card Number</label>
+                <input placeholder="1234 5678 9012 3456" />
+                <div class="row">
+                    <div style="flex:1;">
+                        <label>Expiry Date</label>
+                        <input placeholder="MM/YY" />
+                    </div>
+                    <div style="flex:1;">
+                        <label>CVV (Back of card)</label>
+                        <input placeholder="123" />
+                    </div>
+                </div>
+                <label>Name on Card</label>
+                <input placeholder="Full name" />
+                <button class="btn" id="payBtn">Confirm & Pay</button>
+            </div>
+            <script>
+                document.getElementById('payBtn').addEventListener('click', () => {
+                    window.close();
+                });
+            </script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function openNetBankingWindow(total) {
+    const win = window.open('', '_blank');
+    if (!win) {
+        return toast('Popup blocked. Allow popups to pay by net banking.', 'error');
+    }
+    win.document.write(`
+        <html>
+        <head>
+            <title>Net Banking</title>
+            <style>
+                body { font-family: 'Work Sans', Arial, sans-serif; background:linear-gradient(160deg,#f8efe1,#e4c9a6); color:#2b2014; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+                .card { background:#fff7ec; padding:24px; border-radius:20px; width:360px; box-shadow:0 24px 50px rgba(43,32,20,0.18); border:1px solid #e7d2b8; }
+                h3 { margin:0 0 6px; letter-spacing:0.12rem; text-transform:uppercase; font-size:14px; color:#7a5a3a; }
+                select, input { width:100%; padding:10px 12px; margin-top:10px; border-radius:10px; border:1px solid #e0d3c0; background:#fff; }
+                .amount { font-size:18px; font-weight:700; margin:8px 0 12px; color:#3b2a18; }
+                .btn { margin-top:14px; padding:10px 16px; border-radius:999px; border:none; background:#2b2014; color:#fff; font-weight:700; cursor:pointer; width:100%; }
+                label { font-size:12px; color:#7a6650; display:block; margin-top:10px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3>Net Banking</h3>
+                <div class="amount">₹${total.toLocaleString('en-IN')}</div>
+                <label>Select Bank</label>
+                <select>
+                    <option>State Bank of India</option>
+                    <option>HDFC Bank</option>
+                    <option>ICICI Bank</option>
+                    <option>Axis Bank</option>
+                    <option>Kotak Mahindra</option>
+                    <option>Canara Bank</option>
+                    <option>Bank of Baroda</option>
+                    <option>Punjab National Bank</option>
+                </select>
+                <label>Customer ID</label>
+                <input placeholder="Customer ID" />
+                <label>Login Password</label>
+                <input type="password" placeholder="Password" />
+                <button class="btn" id="payBtn">Confirm & Pay</button>
+            </div>
+            <script>
+                document.getElementById('payBtn').addEventListener('click', () => {
+                    window.close();
+                });
+            </script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+function openCodWindow(total) {
+    const win = window.open('', '_blank');
+    if (!win) {
+        return toast('Popup blocked. Allow popups to confirm COD.', 'error');
+    }
+    win.document.write(`
+        <html>
+        <head>
+            <title>Cash on Delivery</title>
+            <style>
+                body { font-family: 'Work Sans', Arial, sans-serif; background:linear-gradient(160deg,#f8efe1,#e4c9a6); color:#2b2014; margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
+                .card { background:#fff7ec; padding:24px; border-radius:20px; width:360px; box-shadow:0 24px 50px rgba(43,32,20,0.18); text-align:center; border:1px solid #e7d2b8; }
+                h3 { margin:0 0 6px; letter-spacing:0.12rem; text-transform:uppercase; font-size:14px; color:#7a5a3a; }
+                .amount { font-size:18px; font-weight:700; margin:8px 0 12px; color:#3b2a18; }
+                .btn { margin-top:14px; padding:10px 16px; border-radius:999px; border:none; background:#2b2014; color:#fff; font-weight:700; cursor:pointer; width:100%; }
+                .note { font-size:13px; color:#7a6650; margin-top:8px; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h3>Cash on Delivery</h3>
+                <div class="amount">₹${total.toLocaleString('en-IN')}</div>
+                <div class="note">Pay in cash when the order is delivered.</div>
+                <button class="btn" id="payBtn">Confirm COD Order</button>
+            </div>
+            <script>
+                document.getElementById('payBtn').addEventListener('click', () => {
+                    window.close();
+                });
+            </script>
+        </body>
+        </html>
+    `);
+    win.document.close();
 }
 
 // ====== TRACKING ======
@@ -1020,4 +1312,12 @@ function animateCounters() {
     });
 }
 window.updateAdminUI = updateAdminUI;
-window.renderAdmin = renderAdmin;
+window.renderAdminSummary = renderAdminSummary;
+window.updatePartnerUI = updatePartnerUI;
+window.__updateSellerListings = (data) => {
+    sellerListings = Array.isArray(data) ? data : [];
+    renderCatalog();
+};
+window.__updateTransporters = (data) => {
+    transporters = Array.isArray(data) ? data : [];
+};

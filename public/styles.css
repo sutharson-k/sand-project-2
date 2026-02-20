@@ -73,15 +73,16 @@ select { cursor: pointer; }
 .terms-check span { display: inline-flex; align-items: center; }
 .terms-check a { color: var(--primary); text-decoration: underline; }
 .terms-content { max-height: 55vh; overflow:auto; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
-.admin-tabs { display:flex; flex-wrap:wrap; gap:10px; margin-top: 16px; }
-.admin-tab { border:1px solid var(--border); background: var(--card-bg); color: var(--text-primary); padding:8px 14px; border-radius: 999px; font-weight:600; cursor:pointer; }
-.admin-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.admin-panel { margin-top: 16px; }
-.admin-cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:16px; }
-.admin-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-.admin-list { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
+.admin-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; font-weight: 600; color: var(--text-primary); }
+.admin-list { margin-top: 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
 .admin-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed var(--border); font-size:0.9rem; }
 .admin-row:last-child { border-bottom: none; }
+.admin-actions { display:flex; gap:8px; }
+.admin-btn { border:1px solid var(--border); background:transparent; color:var(--text-primary); padding:6px 10px; border-radius:999px; font-size:0.75rem; cursor:pointer; }
+.admin-btn:disabled { opacity:0.6; cursor:not-allowed; }
+.admin-approve { border-color:#36b37e; color:#1f8d5c; }
+.admin-reject { border-color:#ff6b6b; color:#d64545; }
 .upi-qr-wrap { margin-top: 10px; display: flex; justify-content: flex-start; }
 .upi-qr { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); background: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
@@ -366,6 +367,10 @@ select { cursor: pointer; }
 .detail-info .detail-price span { font-size: 0.9rem; color: var(--text-secondary); font-weight: 400; }
 .detail-info .detail-desc { color: var(--text-secondary); line-height: 1.8; margin-bottom: 20px; }
 .detail-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.detail-sellers { margin: 16px 0; padding: 12px; border: 1px dashed var(--border); border-radius: var(--radius-lg); }
+.detail-sellers h4 { margin: 0 0 8px; font-size: 1rem; }
+.detail-seller-row { display:flex; justify-content:space-between; font-size:0.9rem; padding:4px 0; }
+.detail-sellers.empty { color: var(--text-secondary); font-size: 0.9rem; }
 .spec-item { background: var(--bg-secondary); padding: 12px; border-radius: var(--radius); }
 .spec-item .spec-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
 .spec-item .spec-value { font-weight: 600; font-size: 0.95rem; }
@@ -452,12 +457,13 @@ select { cursor: pointer; }
 }
 .payment-method { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .payment-option {
-    display: flex; align-items: center; gap: 12px; padding: 16px;
+    display: flex; align-items: flex-start; gap: 12px; padding: 16px;
     border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: var(--transition);
 }
 .payment-option:hover { border-color: var(--primary); }
 .payment-option.selected { border-color: var(--primary); background: rgba(212,165,116,0.05); }
-.payment-option input[type="radio"] { accent-color: var(--primary); }
+.payment-option input[type="radio"] { accent-color: var(--primary); margin-top: 2px; width: 14px; height: 14px; }
+.payment-option span { flex: 1; }
 .payment-option i { font-size: 1.3rem; color: var(--primary); }
 .payment-total {
     text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(212,165,116,0.1), rgba(45,156,219,0.05));

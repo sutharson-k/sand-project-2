@@ -38,6 +38,12 @@
                         <a href="#orders" class="dropdown-item" data-action="orders">
                             <i class="fas fa-box"></i> My Orders
                         </a>
+                        <a href="#seller-dashboard" class="dropdown-item" id="seller-dashboard-link" style="display:none;">
+                            <i class="fas fa-warehouse"></i> Seller Dashboard
+                        </a>
+                        <a href="#transport-dashboard" class="dropdown-item" id="transport-dashboard-link" style="display:none;">
+                            <i class="fas fa-truck-moving"></i> Transport Dashboard
+                        </a>
                         <div class="dropdown-item" data-action="theme">
                             <i class="fas fa-palette"></i> Appearance
                             <label class="theme-switch">
@@ -200,32 +206,20 @@
             <h1>Admin Panel</h1>
             <p>Restricted access - Google login only</p>
         </div>
-        <div class="admin-tabs">
-            <button class="admin-tab active" data-section="overview">Dashboard Overview</button>
-            <button class="admin-tab" data-section="sales">Sales</button>
-            <button class="admin-tab" data-section="orders">Orders</button>
-            <button class="admin-tab" data-section="users">Users</button>
-            <button class="admin-tab" data-section="sellers">Sellers</button>
-            <button class="admin-tab" data-section="logistics">Logistics</button>
-            <button class="admin-tab" data-section="payments">Payments</button>
-            <button class="admin-tab" data-section="analytics">Analytics</button>
-            <button class="admin-tab" data-section="ai">AI Verification</button>
-            <button class="admin-tab" data-section="settings">Settings</button>
-            <button class="admin-tab" data-section="security">Security Alerts</button>
+        <div class="admin-grid">
+            <div class="admin-card" id="admin-total-users">Users</div>
+            <div class="admin-card" id="admin-total-orders">Orders</div>
+            <div class="admin-card" id="admin-total-sellers">Sellers</div>
+            <div class="admin-card" id="admin-total-transport">Transport</div>
+            <div class="admin-card" id="admin-sales">Sales</div>
+            <div class="admin-card" id="admin-analytics">Analytics</div>
+            <div class="admin-card" id="admin-ai">AI Verification</div>
+            <div class="admin-card" id="admin-settings">Settings</div>
+            <div class="admin-card" id="admin-security">Security Alerts</div>
         </div>
-        <div class="admin-panel" id="admin-panel">
-            <div class="admin-cards" id="admin-overview"></div>
-            <div class="admin-list" id="admin-sales" style="display:none;"></div>
-            <div class="admin-list" id="admin-orders" style="display:none;"></div>
-            <div class="admin-list" id="admin-users" style="display:none;"></div>
-            <div class="admin-list" id="admin-sellers" style="display:none;"></div>
-            <div class="admin-list" id="admin-logistics" style="display:none;"></div>
-            <div class="admin-list" id="admin-payments" style="display:none;"></div>
-            <div class="admin-list" id="admin-analytics" style="display:none;"></div>
-            <div class="admin-list" id="admin-ai" style="display:none;"></div>
-            <div class="admin-list" id="admin-settings" style="display:none;"></div>
-            <div class="admin-list" id="admin-security" style="display:none;"></div>
-        </div>
+        <div class="admin-list" id="admin-latest-orders"></div>
+        <div class="admin-list" id="admin-latest-sellers"></div>
+        <div class="admin-list" id="admin-latest-transporters"></div>
     </section>
 
     <!-- ====== TERMS MODAL ====== -->

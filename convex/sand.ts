@@ -165,6 +165,8 @@ export const createOrder = mutation({
     sandId: v.optional(v.id("sandTypes")),
     dealerId: v.optional(v.id("dealers")),
     truckId: v.optional(v.id("trucks")),
+    sellerId: v.optional(v.id("users")),
+    transporterId: v.optional(v.id("users")),
     sandName: v.string(),
     dealerName: v.string(),
     truckName: v.string(),
@@ -172,11 +174,42 @@ export const createOrder = mutation({
     total: v.number(),
     paymentMethod: v.string(),
     address: v.string(),
+    pickupLocation: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
+    }
+    if (args.sellerId) {
+      const sellerRole = await ctx.db
+        .query("userRoles")
+        .withIndex("by_user", (q: any) => q.eq("userId", args.sellerId))
+        .filter((q: any) => q.eq(q.field("role"), "seller"))
+        .unique();
+      if (!sellerRole) {
+        throw new Error("Invalid seller");
+      }
+      if (args.sandId) {
+        const listing = await ctx.db
+          .query("sellerSandListings")
+          .withIndex("by_sand", (q: any) => q.eq("sandId", args.sandId))
+          .filter((q: any) => q.eq(q.field("sellerId"), args.sellerId))
+          .unique();
+        if (!listing) {
+          throw new Error("Seller does not offer this sand");
+        }
+      }
+    }
+    if (args.transporterId) {
+      const transporterRole = await ctx.db
+        .query("userRoles")
+        .withIndex("by_user", (q: any) => q.eq("userId", args.transporterId))
+        .filter((q: any) => q.eq(q.field("role"), "transporter"))
+        .unique();
+      if (!transporterRole) {
+        throw new Error("Invalid transporter");
+      }
     }
     const orderId = await ctx.db.insert("orders", {
       userId,
@@ -184,6 +217,8 @@ export const createOrder = mutation({
       sandId: args.sandId,
       dealerId: args.dealerId,
       truckId: args.truckId,
+      sellerId: args.sellerId,
+      transporterId: args.transporterId,
       sandName: args.sandName,
       dealerName: args.dealerName,
       truckName: args.truckName,
@@ -191,6 +226,7 @@ export const createOrder = mutation({
       total: args.total,
       paymentMethod: args.paymentMethod,
       address: args.address,
+      pickupLocation: args.pickupLocation,
       status: "processing",
       createdAt: Date.now(),
     });

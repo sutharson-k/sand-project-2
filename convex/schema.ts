@@ -41,6 +41,8 @@ export default defineSchema({
     sandId: v.optional(v.id("sandTypes")),
     dealerId: v.optional(v.id("dealers")),
     truckId: v.optional(v.id("trucks")),
+    sellerId: v.optional(v.id("users")),
+    transporterId: v.optional(v.id("users")),
     sandName: v.string(),
     dealerName: v.string(),
     truckName: v.string(),
@@ -49,6 +51,7 @@ export default defineSchema({
     paymentMethod: v.string(),
     status: v.string(),
     address: v.string(),
+    pickupLocation: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
   userPrefs: defineTable({
@@ -85,4 +88,44 @@ export default defineSchema({
     status: v.string(),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
+  userRoles: defineTable({
+    userId: v.id("users"),
+    role: v.string(),
+  }).index("by_user", ["userId"]),
+  sellerProfiles: defineTable({
+    userId: v.id("users"),
+    company: v.string(),
+    location: v.string(),
+    phone: v.string(),
+    email: v.string(),
+  }).index("by_user", ["userId"]),
+  transporterProfiles: defineTable({
+    userId: v.id("users"),
+    company: v.string(),
+    baseLocation: v.string(),
+    phone: v.string(),
+    email: v.string(),
+  }).index("by_user", ["userId"]),
+  transporterVehicles: defineTable({
+    transporterId: v.id("users"),
+    label: v.string(),
+    capacity: v.string(),
+    vehicleType: v.string(),
+  }).index("by_transporter", ["transporterId"]),
+  sellerSandListings: defineTable({
+    sellerId: v.id("users"),
+    sandId: v.id("sandTypes"),
+    price: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_seller", ["sellerId"])
+    .index("by_sand", ["sandId"]),
+  adminAuditLogs: defineTable({
+    actorId: v.id("users"),
+    action: v.string(),
+    targetType: v.string(),
+    targetId: v.string(),
+    status: v.string(),
+    createdAt: v.number(),
+  }).index("by_actor", ["actorId"]),
 });

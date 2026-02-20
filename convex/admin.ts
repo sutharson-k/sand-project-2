@@ -8,13 +8,9 @@ const ADMIN_EMAILS = new Set([
 
 async function requireAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    return null;
-  }
+  if (!userId) return null;
   const user = await ctx.db.get(userId);
-  if (!user?.email || !ADMIN_EMAILS.has(user.email)) {
-    return null;
-  }
+  if (!user?.email || !ADMIN_EMAILS.has(user.email)) return null;
   const accounts = await ctx.db
     .query("authAccounts")
     .filter((q: any) => q.eq(q.field("userId"), userId))
@@ -23,40 +19,31 @@ async function requireAdmin(ctx: any) {
   return hasGoogle ? userId : null;
 }
 
-export const adminBundle = query({
+export const adminSnapshot = query({
   args: {},
   handler: async (ctx) => {
     const adminId = await requireAdmin(ctx);
-    if (!adminId) {
-      return { ok: false };
-    }
-
-    const [
-      users,
-      orders,
-      sellerApps,
-      transportApps,
-    ] = await Promise.all([
-      ctx.db.query("users").order("desc").take(20),
-      ctx.db.query("orders").order("desc").take(20),
-      ctx.db.query("sellerApplications").order("desc").take(20),
-      ctx.db.query("transportApplications").order("desc").take(20),
-    ]);
+    if (!adminId) return { ok: false };
 
     const totalUsers = (await ctx.db.query("users").collect()).length;
     const totalOrders = (await ctx.db.query("orders").collect()).length;
     const totalSellers = (await ctx.db.query("sellerApplications").collect()).length;
     const totalTransport = (await ctx.db.query("transportApplications").collect()).length;
-
-    const statusCounts = {
-      processing: 0,
-      loading: 0,
-      delivering: 0,
-      delivered: 0,
-    } as Record<string, number>;
-    for (const order of orders) {
-      statusCounts[order.status] = (statusCounts[order.status] ?? 0) + 1;
-    }
+    const latestOrders = await ctx.db.query("orders").order("desc").take(5);
+    const latestSellers = await ctx.db
+      .query("sellerApplications")
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .collect();
+    const latestTransporters = await ctx.db
+      .query("transportApplications")
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .collect();
+    const auditLogs = await ctx.db
+      .query("adminAuditLogs")
+      .order("desc")
+      .take(10);
 
     return {
       ok: true,
@@ -66,11 +53,10 @@ export const adminBundle = query({
         sellers: totalSellers,
         transporters: totalTransport,
       },
-      orders,
-      users,
-      sellerApps,
-      transportApps,
-      analytics: statusCounts,
+      latestOrders,
+      latestSellers,
+      latestTransporters,
+      auditLogs,
     };
   },
 });
