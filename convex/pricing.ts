@@ -22,6 +22,12 @@ export const calculatePrice = mutation({
     if (!userId) {
       throw new Error("Not authenticated");
     }
+    if (args.quantity < 1 || args.quantity > 100) {
+      throw new Error("Invalid quantity");
+    }
+    if (args.distanceKm < 1 || args.distanceKm > 500) {
+      throw new Error("Invalid distance");
+    }
     const listing = await ctx.db.get(args.listingId);
     if (!listing) {
       throw new Error("Listing not found");

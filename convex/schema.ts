@@ -52,6 +52,8 @@ export default defineSchema({
     status: v.string(),
     address: v.string(),
     pickupLocation: v.optional(v.string()),
+    distanceKm: v.optional(v.number()),
+    deliveryWindow: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
   userPrefs: defineTable({

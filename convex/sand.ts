@@ -175,11 +175,21 @@ export const createOrder = mutation({
     paymentMethod: v.string(),
     address: v.string(),
     pickupLocation: v.optional(v.string()),
+    distanceKm: v.optional(v.number()),
+    deliveryWindow: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
+    }
+    if (args.quantity < 1 || args.quantity > 100) {
+      throw new Error("Invalid quantity");
+    }
+    if (args.distanceKm !== undefined) {
+      if (args.distanceKm < 1 || args.distanceKm > 500) {
+        throw new Error("Invalid distance");
+      }
     }
     const since = Date.now() - 60 * 1000;
     const recentOrders = await ctx.db
@@ -220,6 +230,51 @@ export const createOrder = mutation({
         throw new Error("Invalid transporter");
       }
     }
+    const deliveryWindow = args.deliveryWindow ?? "flexible";
+    const windowMultiplier =
+      deliveryWindow === "same-day"
+        ? 1.15
+        : deliveryWindow === "next-day"
+          ? 1.05
+          : 1;
+    let sandUnitPrice = 0;
+    if (args.sellerId && args.sandId) {
+      const listing = await ctx.db
+        .query("sellerSandListings")
+        .withIndex("by_sand", (q: any) => q.eq("sandId", args.sandId))
+        .filter((q: any) => q.eq(q.field("sellerId"), args.sellerId))
+        .unique();
+      if (listing) {
+        sandUnitPrice = listing.price;
+      }
+    }
+    if (!sandUnitPrice && args.sandId) {
+      const sand = await ctx.db.get(args.sandId);
+      if (sand) {
+        sandUnitPrice = sand.price;
+      }
+    }
+    const sandCost = sandUnitPrice * args.quantity;
+    let baseCost = 2500;
+    let perTon = 150;
+    if (args.truckId) {
+      const truck = await ctx.db.get(args.truckId);
+      if (truck) {
+        baseCost = truck.baseCost;
+        perTon = truck.perTon;
+      }
+    }
+    const transportCost = baseCost + perTon * args.quantity;
+    const distanceFee = Math.round((args.distanceKm ?? 0) * 12);
+    const windowFee = Math.round(
+      (sandCost + transportCost) * (windowMultiplier - 1),
+    );
+    const subTotal = sandCost + transportCost + distanceFee + windowFee;
+    const gst = Math.round(subTotal * 0.05);
+    const computedTotal = subTotal + gst;
+    if (!Number.isFinite(computedTotal) || computedTotal <= 0) {
+      throw new Error("Invalid pricing");
+    }
     const orderId = await ctx.db.insert("orders", {
       userId,
       orderNumber: args.orderNumber,
@@ -232,10 +287,12 @@ export const createOrder = mutation({
       dealerName: args.dealerName,
       truckName: args.truckName,
       quantity: args.quantity,
-      total: args.total,
+      total: computedTotal,
       paymentMethod: args.paymentMethod,
       address: args.address,
       pickupLocation: args.pickupLocation,
+      distanceKm: args.distanceKm,
+      deliveryWindow,
       status: "processing",
       createdAt: Date.now(),
     });
@@ -302,6 +359,15 @@ export const updateOrderStatus = mutation({
     const order = await ctx.db.get(args.orderId);
     if (!order || order.userId !== userId) {
       throw new Error("Order not found");
+    }
+    const allowed = ["processing", "loading", "delivering", "delivered"];
+    if (!allowed.includes(args.status)) {
+      throw new Error("Invalid status");
+    }
+    const currentIndex = allowed.indexOf(order.status);
+    const nextIndex = allowed.indexOf(args.status);
+    if (nextIndex !== currentIndex + 1) {
+      throw new Error("Invalid status transition");
     }
     await ctx.db.patch(args.orderId, { status: args.status });
     await ctx.db.insert("orderTrackingUpdates", {

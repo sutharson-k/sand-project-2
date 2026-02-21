@@ -618,12 +618,36 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+function sanitizeUrl(value) {
+    const url = String(value ?? '').trim();
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('data:image/')) return url;
+    if (url.startsWith('/')) return url;
+    return '';
+}
+
+function sanitizeIcon(value) {
+    const icon = String(value ?? '').trim();
+    return /^fa-[a-z0-9-]+$/i.test(icon) ? icon : 'fa-box';
+}
+
+function sanitizeColor(value) {
+    const color = String(value ?? '').trim();
+    if (/^#[0-9a-f]{3,8}$/i.test(color)) return color;
+    if (/^linear-gradient\\([a-z0-9#,%\\.\\s-]+\\)$/i.test(color)) return color;
+    return 'linear-gradient(135deg,#C2B280,#A89060)';
+}
+
 function sandCardHTML(s) {
-    const imageContent = s.image
-        ? `<img src="${s.image}" alt="${escapeHtml(s.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
-        : `<div class="sand-texture"></div><i class="fas ${s.icon}"></i>`;
+    const imageUrl = sanitizeUrl(s.image);
+    const iconClass = sanitizeIcon(s.icon);
+    const imageContent = imageUrl
+        ? `<img src="${imageUrl}" alt="${escapeHtml(s.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
+        : `<div class="sand-texture"></div><i class="fas ${iconClass}"></i>`;
+    const safeColor = sanitizeColor(s.color);
     return `<div class="sand-card" onclick="viewSandDetail(${s.id})">
-        <div class="sand-card-image" style="background:${s.color}">
+        <div class="sand-card-image" style="background:${safeColor}">
             ${imageContent}
         </div>
         <div class="sand-card-body">
@@ -664,12 +688,13 @@ function viewSandDetail(id) {
         </div>`
         : `<div class="detail-sellers empty">No sellers listed yet.</div>`;
     const container = document.getElementById('detail-container');
-    const detailImageContent = sand.image
-        ? `<img src="${sand.image}" alt="${escapeHtml(sand.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
-        : `<i class="fas ${sand.icon}"></i>`;
+    const detailImageUrl = sanitizeUrl(sand.image);
+    const detailImageContent = detailImageUrl
+        ? `<img src="${detailImageUrl}" alt="${escapeHtml(sand.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius-lg);">`
+        : `<i class="fas ${sanitizeIcon(sand.icon)}"></i>`;
     container.innerHTML = `
         <div class="detail-grid">
-            <div class="detail-image" style="background:${sand.color};overflow:hidden;">
+            <div class="detail-image" style="background:${sanitizeColor(sand.color)};overflow:hidden;">
                 ${detailImageContent}
             </div>
             <div class="detail-info">
@@ -781,7 +806,7 @@ function goToDealers() {
         card.addEventListener('click', () => selectDealer(d.listingId, price, card));
         const avatar = document.createElement('div');
         avatar.className = 'dealer-avatar';
-        avatar.style.background = state.selectedSand.color;
+        avatar.style.background = sanitizeColor(state.selectedSand.color);
         avatar.textContent = (d.company || '').charAt(0);
         const info = document.createElement('div');
         info.className = 'dealer-info';
@@ -862,7 +887,7 @@ function goToTransport() {
         card.addEventListener('click', () => selectTruck(t.transporterId ?? t.id, card));
         const icon = document.createElement('div');
         icon.className = 'transport-icon';
-        icon.innerHTML = `<i class="fas ${t.icon}"></i>`;
+        icon.innerHTML = `<i class="fas ${sanitizeIcon(t.icon)}"></i>`;
         const info = document.createElement('div');
         info.className = 'transport-info';
         const h3 = document.createElement('h3');
@@ -905,8 +930,8 @@ function goToOrderForm() {
         <div class="order-section">
             <h3><i class="fas fa-cube"></i> Selected Sand</h3>
             <div style="display:flex;align-items:center;gap:16px">
-                <div style="width:60px;height:60px;border-radius:12px;background:${state.selectedSand.color};display:flex;align-items:center;justify-content:center">
-                    <i class="fas ${state.selectedSand.icon}" style="color:rgba(255,255,255,0.7);font-size:1.2rem"></i>
+                <div style="width:60px;height:60px;border-radius:12px;background:${sanitizeColor(state.selectedSand.color)};display:flex;align-items:center;justify-content:center">
+                    <i class="fas ${sanitizeIcon(state.selectedSand.icon)}" style="color:rgba(255,255,255,0.7);font-size:1.2rem"></i>
                 </div>
                 <div><strong>${escapeHtml(state.selectedSand.name)}</strong><br><span style="color:var(--text-secondary);font-size:0.85rem">${escapeHtml(state.selectedSand.category)}</span></div>
             </div>
@@ -1148,7 +1173,7 @@ function processPayment(total) {
         id: orderId, orderNumber, sand: state.selectedSand.name, dealer: state.selectedDealer.name,
         transport: (state.selectedTruck.company || state.selectedTruck.name), quantity: state.orderQuantity,
         total, date: new Date().toLocaleDateString('en-IN'), status: 'processing',
-        color: state.selectedSand.color, icon: state.selectedSand.icon,
+        color: sanitizeColor(state.selectedSand.color), icon: sanitizeIcon(state.selectedSand.icon),
         sellerId: state.selectedDealer.sellerId || null,
         transporterId: state.selectedTruck.transporterId || null
     };
@@ -1168,7 +1193,9 @@ function processPayment(total) {
             total,
             paymentMethod,
             address,
-            pickupLocation: state.selectedDealer.location || ''
+            pickupLocation: state.selectedDealer.location || '',
+            distanceKm: state.distanceKm,
+            deliveryWindow: state.deliveryWindow
         }).then((dbId) => {
             order.dbId = dbId;
             localStorage.setItem('sandify_orders', JSON.stringify(state.orders));

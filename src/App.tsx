@@ -1218,6 +1218,8 @@ export default function App() {
           total: number;
           paymentMethod: string;
           address: string;
+          distanceKm?: number;
+          deliveryWindow?: string;
         }) => createOrder(data as any);
         (window as any).__convexUpdateOrderStatus = (data: {
           orderId: string;
