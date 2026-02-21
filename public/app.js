@@ -1726,6 +1726,12 @@ function showSuccess(title, msg, cb) {
     document.getElementById('success-message').textContent = msg;
     const btn = document.getElementById('success-btn');
     btn.onclick = () => { closeModal('success-modal'); if (cb) cb(); };
+    const check = document.querySelector('.success-checkmark');
+    if (check) {
+        check.classList.remove('animate');
+        void check.offsetWidth;
+        check.classList.add('animate');
+    }
     openModal('success-modal');
 }
 
@@ -1867,7 +1873,7 @@ async function collectApplicationDocuments(form) {
         const label = box.querySelector('span')?.textContent?.trim() || 'Document';
         const file = input?.files?.[0];
         if (file) {
-            files.push({ file, label });
+            files.push({ file, label, box });
         }
     });
     if (files.length === 0 || !window.__convexGenerateAppUploadUrl) {
@@ -1888,18 +1894,48 @@ async function collectApplicationDocuments(form) {
     const results = [];
     for (const item of files) {
         const uploadUrl = await window.__convexGenerateAppUploadUrl();
-        const res = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': item.file.type },
-            body: item.file,
-        });
-        if (!res.ok) {
-            continue;
+        const storageId = await uploadWithProgress(uploadUrl, item.file, item.box);
+        if (storageId) {
+            results.push({ label: item.label, storageId });
         }
-        const { storageId } = await res.json();
-        results.push({ label: item.label, storageId });
     }
     return results;
+}
+
+function uploadWithProgress(uploadUrl, file, box) {
+    return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        const bar = box?.querySelector('.upload-progress-bar');
+        if (bar) {
+            bar.style.width = '0%';
+            bar.classList.remove('done');
+        }
+        xhr.upload.onprogress = (evt) => {
+            if (!evt.lengthComputable || !bar) return;
+            const pct = Math.round((evt.loaded / evt.total) * 100);
+            bar.style.width = `${pct}%`;
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (bar) {
+                        bar.style.width = '100%';
+                        bar.classList.add('done');
+                    }
+                    resolve(res.storageId);
+                } catch {
+                    resolve(null);
+                }
+            } else {
+                resolve(null);
+            }
+        };
+        xhr.onerror = () => resolve(null);
+        xhr.send(file);
+    });
 }
 
 function validateRequiredUploads(form) {
@@ -1912,11 +1948,51 @@ function validateRequiredUploads(form) {
     return ok;
 }
 
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 function updateUploadPreview(input) {
     const box = input.closest('.upload-box');
     if (!box) return;
     const file = input.files?.[0];
     if (!file) return;
+    let errorEl = box.querySelector('.upload-error');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'upload-error';
+        box.appendChild(errorEl);
+    }
+    let okEl = box.querySelector('.upload-ok');
+    if (!okEl) {
+        okEl = document.createElement('div');
+        okEl.className = 'upload-ok';
+        box.appendChild(okEl);
+    }
+    errorEl.textContent = '';
+    okEl.textContent = '';
+    if (file.size > MAX_UPLOAD_BYTES) {
+        errorEl.textContent = 'File too large (max 5MB)';
+        input.value = '';
+        return;
+    }
+    const okType = /pdf|png|jpe?g/i.test(file.type);
+    if (!okType) {
+        errorEl.textContent = 'Invalid file type. Use PDF/JPG/PNG.';
+        input.value = '';
+        return;
+    }
+    okEl.textContent = 'File ready ✓';
+    let progress = box.querySelector('.upload-progress');
+    if (!progress) {
+        progress = document.createElement('div');
+        progress.className = 'upload-progress';
+        progress.innerHTML = '<div class="upload-progress-bar"></div>';
+        box.appendChild(progress);
+    }
+    const bar = progress.querySelector('.upload-progress-bar');
+    if (bar) {
+        bar.style.width = '0%';
+        bar.classList.remove('done');
+    }
     let preview = box.querySelector('.upload-preview');
     if (!preview) {
         preview = document.createElement('div');
