@@ -39,7 +39,10 @@ function SellerDashboard({
     desc: string;
     uses: string;
   }) => void;
-  onUpload: (file: File) => Promise<{ storageId: string }>;
+  onUpload: (
+    file: File,
+    onProgress: (pct: number) => void,
+  ) => Promise<{ storageId: string }>;
   onUpdateInventory: (payload: {
     listingId: string;
     availableTons?: number;
@@ -57,6 +60,7 @@ function SellerDashboard({
     uses: "",
   });
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [imageStorageId, setImageStorageId] = useState<string | null>(null);
   const [inventoryDraft, setInventoryDraft] = useState<Record<string, any>>({});
 
@@ -117,14 +121,23 @@ function SellerDashboard({
               const file = e.target.files?.[0];
               if (!file) return;
               setUploading(true);
+              setUploadProgress(0);
               try {
-                const res = await onUpload(file);
+                const res = await onUpload(file, setUploadProgress);
                 setImageStorageId(res.storageId);
               } finally {
                 setUploading(false);
               }
             }}
           />
+          {uploading ? (
+            <div className="upload-progress" style={{ marginTop: 8 }}>
+              <div
+                className="upload-progress-bar"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          ) : null}
           <input
             placeholder="Short description"
             value={form.desc}
@@ -1613,7 +1626,7 @@ export default function App() {
           onUpdateInventory={(payload) =>
             updateListingInventory(payload as any)
           }
-          onUpload={async (file) => {
+          onUpload={async (file, onProgress) => {
             const maxBytes = 5 * 1024 * 1024;
             if (file.size > maxBytes) {
               throw new Error("File too large (max 5MB)");
@@ -1622,15 +1635,30 @@ export default function App() {
               throw new Error("Invalid file type");
             }
             const uploadUrl = await generateImageUploadUrl();
-            const res = await fetch(uploadUrl, {
-              method: "POST",
-              headers: { "Content-Type": file.type },
-              body: file,
+            const storageId = await new Promise<string>((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open("POST", uploadUrl);
+              xhr.setRequestHeader("Content-Type", file.type);
+              xhr.upload.onprogress = (evt) => {
+                if (!evt.lengthComputable) return;
+                const pct = Math.round((evt.loaded / evt.total) * 100);
+                onProgress(pct);
+              };
+              xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data.storageId);
+                  } catch {
+                    reject(new Error("Upload failed"));
+                  }
+                } else {
+                  reject(new Error("Upload failed"));
+                }
+              };
+              xhr.onerror = () => reject(new Error("Upload failed"));
+              xhr.send(file);
             });
-            if (!res.ok) {
-              throw new Error("Upload failed");
-            }
-            const { storageId } = await res.json();
             return { storageId };
           }}
         />
