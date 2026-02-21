@@ -15,6 +15,13 @@
                 <a href="#admin" class="nav-link" data-page="admin" id="admin-nav-link" style="display:none;">Admin</a>
             </div>
             <div class="nav-actions">
+                <div class="notif-wrapper" id="notif-wrapper" style="display:none;">
+                    <button class="notif-btn" id="notif-btn" title="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="notif-count" id="notif-count">0</span>
+                    </button>
+                    <div class="notif-dropdown" id="notif-dropdown"></div>
+                </div>
                 <button class="btn-location" id="btn-nav-location" style="display:none;" title="Change Location">
                     <i class="fas fa-map-marker-alt"></i>
                     <span id="nav-location-text">Set Location</span>
@@ -93,15 +100,15 @@
                         <label><i class="fas fa-lock"></i> Password</label>
                         <input type="password" id="login-password" placeholder="Enter password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-full">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </button>
                     <div class="terms-row">
                         <label class="terms-check">
                             <input type="checkbox" id="login-terms-check">
                             <span>I agree to the <a href="#" id="terms-link">Terms &amp; Conditions</a></span>
                         </label>
                     </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
                     <button type="button" class="btn btn-outline btn-full btn-google" id="btn-google-auth">
                         <i class="fab fa-google"></i> Continue with Google
                     </button>
@@ -345,7 +352,7 @@
                 </div>
                 <div class="hero-stats">
                     <div class="stat">
-                        <span class="stat-number" data-count="6">0</span><span class="stat-suffix"></span>
+                        <span class="stat-number" data-count="0" id="sand-count-stat">0</span><span class="stat-suffix"></span>
                         <span class="stat-label">Sand Types</span>
                     </div>
                     <div class="stat">
@@ -376,7 +383,7 @@
                     <div class="step-number">01</div>
                     <div class="step-icon"><i class="fas fa-search"></i></div>
                     <h3>Browse & Select</h3>
-                    <p>Choose from 6 types of sand for your construction or landscaping needs</p>
+                    <p>Choose from <span class="sand-count-text">6</span> types of sand for your construction or landscaping needs</p>
                 </div>
                 <div class="step-card" data-aos="fade-up" data-delay="100">
                     <div class="step-number">02</div>
@@ -477,9 +484,9 @@
                 <div class="role-card buyer">
                     <div class="role-icon"><i class="fas fa-shopping-bag"></i></div>
                     <h3>Buyer</h3>
-                    <p>Order premium sand with competitive prices and live tracking. Choose from 6 varieties.</p>
+                    <p>Order premium sand with competitive prices and live tracking. Choose from <span class="sand-count-text">6</span> varieties.</p>
                     <ul>
-                        <li><i class="fas fa-check"></i> Browse 6 sand types</li>
+                        <li><i class="fas fa-check"></i> Browse <span class="sand-count-text">6</span> sand types</li>
                         <li><i class="fas fa-check"></i> Compare dealer prices</li>
                         <li><i class="fas fa-check"></i> Live order tracking</li>
                         <li><i class="fas fa-check"></i> Secure online payments</li>
@@ -559,7 +566,7 @@
     <section class="page" id="page-catalog">
         <div class="page-header">
             <h1><i class="fas fa-th-large"></i> Sand Catalog</h1>
-            <p>Browse 6 types of premium quality sand</p>
+            <p>Browse <span class="sand-count-text">6</span> types of premium quality sand</p>
         </div>
         <div class="catalog-controls">
             <div class="search-bar">
@@ -637,6 +644,49 @@
         <div class="payment-container" id="payment-container"></div>
     </section>
 
+    <!-- ====== BULK QUOTE MODAL ====== -->
+    <div class="modal-overlay" id="quote-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('quote-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-file-signature auth-logo-icon"></i>
+                    <h2>Request a Bulk Quote</h2>
+                    <p>Tell us the specs and we’ll match you with suppliers.</p>
+                </div>
+                <form id="quote-form" class="auth-form" onsubmit="submitQuoteRequest(event)">
+                    <div class="form-group">
+                        <label>Selected Sand</label>
+                        <div id="quote-sand" style="color:var(--text-secondary)"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity (tons)</label>
+                        <input type="number" id="quote-qty" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery Window</label>
+                        <select id="quote-window">
+                            <option value="same-day">Same day</option>
+                            <option value="next-day">Next day</option>
+                            <option value="flexible">Flexible (2-3 days)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery Address</label>
+                        <input type="text" id="quote-address" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="quote-notes" rows="3" placeholder="Access, unloading, special mix..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-paper-plane"></i> Submit Quote Request
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- ====== PAGE: TRACKING ====== -->
     <section class="page" id="page-tracking">
         <div class="tracking-container" id="tracking-container"></div>
@@ -663,16 +713,16 @@
                 <div class="form-section">
                     <h3><i class="fas fa-building"></i> Business Information</h3>
                     <div class="form-row">
-                        <div class="form-group"><label>Business Name *</label><input type="text"
+                        <div class="form-group"><label>Business Name *</label><input type="text" id="supplier-company"
                                 placeholder="e.g., Sharma Quarries Pvt. Ltd." required></div>
-                        <div class="form-group"><label>Owner Name *</label><input type="text" placeholder="Full name"
-                                required></div>
+                        <div class="form-group"><label>Owner Name *</label><input type="text" id="supplier-owner"
+                                placeholder="Full name" required></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>Business Email *</label><input type="email"
+                        <div class="form-group"><label>Business Email *</label><input type="email" id="supplier-email"
                                 placeholder="business@email.com" required></div>
-                        <div class="form-group"><label>Phone *</label><input type="tel" placeholder="+91 98765 43210"
-                                required></div>
+                        <div class="form-group"><label>Phone *</label><input type="tel" id="supplier-phone"
+                                placeholder="+91 98765 43210" required></div>
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>GST Number *</label><input type="text"
@@ -684,16 +734,20 @@
                 <div class="form-section">
                     <h3><i class="fas fa-mountain"></i> Quarry Details</h3>
                     <div class="form-row">
-                        <div class="form-group"><label>Quarry Name *</label><input type="text"
+                        <div class="form-group"><label>Quarry Name *</label><input type="text" id="supplier-quarry-name"
                                 placeholder="Name of the quarry" required></div>
-                        <div class="form-group"><label>Quarry License No. *</label><input type="text"
+                        <div class="form-group"><label>Quarry License No. *</label><input type="text" id="supplier-quarry-license"
                                 placeholder="License number" required></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>Quarry Location *</label><input type="text"
-                                placeholder="Full address" required></div>
+                        <div class="form-group"><label>Quarry Location *</label>
+                            <div class="form-row">
+                                <input type="text" id="supplier-quarry-location" placeholder="Full address" required>
+                                <button type="button" class="btn btn-outline" onclick="detectLocationAddress('supplier')">Auto Detect</button>
+                            </div>
+                        </div>
                         <div class="form-group"><label>State *</label>
-                            <select required>
+                            <select id="supplier-state" required>
                                 <option value="">Select State</option>
                                 <option>Maharashtra</option>
                                 <option>Tamil Nadu</option>
@@ -710,13 +764,17 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Service Radius (km) *</label><input type="number" id="supplier-radius"
+                                placeholder="e.g., 50" required></div>
+                    </div>
                     <div class="form-group">
                         <label>Sand Types Available *</label>
-                        <input type="text" placeholder="e.g., River Sand, M-Sand, Concrete Sand" required>
+                        <input type="text" id="supplier-sand-types" placeholder="e.g., River Sand, M-Sand, Concrete Sand" required>
                     </div>
                     <div class="form-group">
                         <label>Monthly Production Capacity (in tons) *</label>
-                        <input type="number" placeholder="e.g., 5000" required>
+                        <input type="number" id="supplier-capacity" placeholder="e.g., 5000" required>
                     </div>
                 </div>
                 <div class="form-section">
@@ -765,16 +823,16 @@
                 <div class="form-section">
                     <h3><i class="fas fa-building"></i> Business Information</h3>
                     <div class="form-row">
-                        <div class="form-group"><label>Company Name *</label><input type="text"
+                        <div class="form-group"><label>Company Name *</label><input type="text" id="transport-company"
                                 placeholder="e.g., FastHaul Logistics" required></div>
-                        <div class="form-group"><label>Owner Name *</label><input type="text" placeholder="Full name"
-                                required></div>
+                        <div class="form-group"><label>Owner Name *</label><input type="text" id="transport-owner"
+                                placeholder="Full name" required></div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>Business Email *</label><input type="email"
+                        <div class="form-group"><label>Business Email *</label><input type="email" id="transport-email"
                                 placeholder="business@email.com" required></div>
-                        <div class="form-group"><label>Phone *</label><input type="tel" placeholder="+91 98765 43210"
-                                required></div>
+                        <div class="form-group"><label>Phone *</label><input type="tel" id="transport-phone"
+                                placeholder="+91 98765 43210" required></div>
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>GST Number *</label><input type="text"
@@ -786,10 +844,10 @@
                 <div class="form-section">
                     <h3><i class="fas fa-truck"></i> Vehicle Details</h3>
                     <div class="form-row">
-                        <div class="form-group"><label>Number of Vehicles *</label><input type="number"
+                        <div class="form-group"><label>Number of Vehicles *</label><input type="number" id="transport-vehicles"
                                 placeholder="e.g., 10" required></div>
                         <div class="form-group"><label>Vehicle Types *</label>
-                            <select required>
+                            <select id="transport-vehicle-type" required>
                                 <option value="">Select type</option>
                                 <option>Tipper Trucks</option>
                                 <option>Dumper Trucks</option>
@@ -800,10 +858,18 @@
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label>Max Load Capacity (tons) *</label><input type="number"
+                        <div class="form-group"><label>Max Load Capacity (tons) *</label><input type="number" id="transport-capacity"
                                 placeholder="e.g., 20" required></div>
-                        <div class="form-group"><label>Operating Area *</label><input type="text"
-                                placeholder="e.g., Mumbai, Pune, Nashik" required></div>
+                        <div class="form-group"><label>Base Location *</label>
+                            <div class="form-row">
+                                <input type="text" id="transport-base-location" placeholder="e.g., Mumbai, Pune" required>
+                                <button type="button" class="btn btn-outline" onclick="detectLocationAddress('transport')">Auto Detect</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Service Radius (km) *</label><input type="number" id="transport-radius"
+                                placeholder="e.g., 100" required></div>
                     </div>
                 </div>
                 <div class="form-section">
@@ -875,6 +941,42 @@
                 <h2 id="success-title">Success!</h2>
                 <p id="success-message">Your action was completed successfully.</p>
                 <button class="btn btn-primary" id="success-btn" onclick="closeModal('success-modal')">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== TERMS WARNING MODAL ====== -->
+    <div class="modal-overlay" id="terms-warning-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('terms-warning-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-file-contract auth-logo-icon"></i>
+                    <h2>Please Accept Terms</h2>
+                    <p>You must agree to the Terms & Conditions before continuing.</p>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="closeModal('terms-warning-modal')">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== REMOVE SAND MODAL ====== -->
+    <div class="modal-overlay" id="remove-sand-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('remove-sand-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-trash auth-logo-icon"></i>
+                    <h2>Remove Sand Type</h2>
+                    <p>Please provide a reason for removal.</p>
+                </div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    <textarea id="remove-sand-reason" rows="3" placeholder="Reason..." style="width:100%;"></textarea>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="confirmRemoveSand()">Confirm Remove</button>
             </div>
         </div>
     </div>

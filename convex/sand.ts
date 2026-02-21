@@ -181,6 +181,15 @@ export const createOrder = mutation({
     if (!userId) {
       throw new Error("Not authenticated");
     }
+    const since = Date.now() - 60 * 1000;
+    const recentOrders = await ctx.db
+      .query("orders")
+      .filter((q: any) => q.eq(q.field("userId"), userId))
+      .filter((q: any) => q.gte(q.field("createdAt"), since))
+      .collect();
+    if (recentOrders.length >= 5) {
+      throw new Error("Too many orders. Try again in a minute.");
+    }
     if (args.sellerId) {
       const sellerRole = await ctx.db
         .query("userRoles")
@@ -230,6 +239,12 @@ export const createOrder = mutation({
       status: "processing",
       createdAt: Date.now(),
     });
+    await ctx.db.insert("orderTrackingUpdates", {
+      orderId,
+      status: "processing",
+      message: "Order confirmed and queued for processing.",
+      createdAt: Date.now(),
+    });
     await ctx.scheduler.runAfter(2 * 60 * 1000, internal.sand.advanceOrderStatus, {
       orderId,
       nextStatus: "loading",
@@ -260,6 +275,17 @@ export const advanceOrderStatus = internalMutation({
       return;
     }
     await ctx.db.patch(args.orderId, { status: args.nextStatus });
+    await ctx.db.insert("orderTrackingUpdates", {
+      orderId: args.orderId,
+      status: args.nextStatus,
+      message:
+        args.nextStatus === "loading"
+          ? "Loading started at the quarry."
+          : args.nextStatus === "delivering"
+            ? "Truck departed. On the way to your site."
+            : "Order delivered.",
+      createdAt: Date.now(),
+    });
   },
 });
 
@@ -278,6 +304,12 @@ export const updateOrderStatus = mutation({
       throw new Error("Order not found");
     }
     await ctx.db.patch(args.orderId, { status: args.status });
+    await ctx.db.insert("orderTrackingUpdates", {
+      orderId: args.orderId,
+      status: args.status,
+      message: `Status updated to ${args.status}.`,
+      createdAt: Date.now(),
+    });
     return args.orderId;
   },
 });

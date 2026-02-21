@@ -54,11 +54,28 @@ export const listSellerListings = query({
         const sandItem = sandById.get(l.sandId);
         const seller = sellerById.get(l.sellerId);
         if (!sandItem || !seller) return null;
+        const now = Date.now();
+        const nextRestock = l.nextRestockAt ? new Date(l.nextRestockAt) : null;
+        const available =
+          typeof l.availableTons === "number"
+            ? l.availableTons > 0
+            : true;
+        const cutoffOk =
+          typeof l.cutoffHour === "number"
+            ? new Date(now).getHours() < l.cutoffHour
+            : true;
         return {
           listingId: l._id,
           sandId: l.sandId,
           sellerId: l.sellerId,
           price: l.price,
+          availableTons: l.availableTons ?? null,
+          cutoffHour: l.cutoffHour ?? null,
+          nextRestockAt: l.nextRestockAt ?? null,
+          availability: available && cutoffOk ? "available" : "limited",
+          nextRestockLabel: nextRestock
+            ? nextRestock.toLocaleDateString("en-IN")
+            : null,
           company: seller.company,
           location: seller.location,
           sand: sandItem,
@@ -152,6 +169,12 @@ export const createSandTypeAndListing = mutation({
       .unique();
     if (existingListing) {
       await ctx.db.patch(existingListing._id, { price: args.price });
+      await ctx.db.insert("notifications", {
+        userId: sellerId,
+        message: `Your sand listing for ${args.name} was updated.`,
+        read: false,
+        createdAt: Date.now(),
+      });
       return existingListing._id;
     }
     return await ctx.db.insert("sellerSandListings", {
@@ -227,11 +250,46 @@ export const addTransporterVehicle = mutation({
   },
   handler: async (ctx, args) => {
     const transporterId = await requireRole(ctx, "transporter");
-    return await ctx.db.insert("transporterVehicles", {
+    const id = await ctx.db.insert("transporterVehicles", {
       transporterId,
       label: args.label,
       capacity: args.capacity,
       vehicleType: args.vehicleType,
     });
+    await ctx.db.insert("notifications", {
+      userId: transporterId,
+      message: `Vehicle added: ${args.label}`,
+      read: false,
+      createdAt: Date.now(),
+    });
+    return id;
+  },
+});
+
+export const updateListingInventory = mutation({
+  args: {
+    listingId: v.id("sellerSandListings"),
+    availableTons: v.optional(v.number()),
+    cutoffHour: v.optional(v.number()),
+    nextRestockAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const sellerId = await requireRole(ctx, "seller");
+    const listing = await ctx.db.get(args.listingId);
+    if (!listing || listing.sellerId !== sellerId) {
+      throw new Error("Listing not found");
+    }
+    await ctx.db.patch(args.listingId, {
+      availableTons: args.availableTons,
+      cutoffHour: args.cutoffHour,
+      nextRestockAt: args.nextRestockAt,
+    });
+    await ctx.db.insert("notifications", {
+      userId: sellerId,
+      message: "Inventory updated for your listing.",
+      read: false,
+      createdAt: Date.now(),
+    });
+    return { ok: true };
   },
 });

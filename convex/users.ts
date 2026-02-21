@@ -119,6 +119,148 @@ export const getPrefs = query({
   },
 });
 
+export const listLocations = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+    return await ctx.db
+      .query("userLocations")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const addLocation = mutation({
+  args: {
+    label: v.string(),
+    address: v.string(),
+    makeDefault: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const existing = await ctx.db
+      .query("userLocations")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    if (args.makeDefault) {
+      for (const loc of existing) {
+        if (loc.isDefault) {
+          await ctx.db.patch(loc._id, { isDefault: false });
+        }
+      }
+    }
+    const id = await ctx.db.insert("userLocations", {
+      userId,
+      label: args.label,
+      address: args.address,
+      isDefault: args.makeDefault ?? existing.length === 0,
+      createdAt: Date.now(),
+    });
+    const shouldUpdateDefault = args.makeDefault ?? existing.length === 0;
+    if (shouldUpdateDefault) {
+      const pref = await ctx.db
+        .query("userPrefs")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique();
+      if (pref) {
+        await ctx.db.patch(pref._id, { location: args.address });
+      } else {
+        await ctx.db.insert("userPrefs", {
+          userId,
+          location: args.address,
+          theme: "dark",
+        });
+      }
+    }
+    return id;
+  },
+});
+
+export const setDefaultLocation = mutation({
+  args: { locationId: v.id("userLocations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const location = await ctx.db.get(args.locationId);
+    if (!location || location.userId !== userId) {
+      throw new Error("Location not found");
+    }
+    const existing = await ctx.db
+      .query("userLocations")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const loc of existing) {
+      if (loc.isDefault && loc._id !== location._id) {
+        await ctx.db.patch(loc._id, { isDefault: false });
+      }
+    }
+    await ctx.db.patch(location._id, { isDefault: true });
+    const pref = await ctx.db
+      .query("userPrefs")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (pref) {
+      await ctx.db.patch(pref._id, { location: location.address });
+    } else {
+      await ctx.db.insert("userPrefs", {
+        userId,
+        location: location.address,
+        theme: "dark",
+      });
+    }
+    return { ok: true };
+  },
+});
+
+export const removeLocation = mutation({
+  args: { locationId: v.id("userLocations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const location = await ctx.db.get(args.locationId);
+    if (!location || location.userId !== userId) {
+      throw new Error("Location not found");
+    }
+    await ctx.db.delete(args.locationId);
+    if (location.isDefault) {
+      const remaining = await ctx.db
+        .query("userLocations")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect();
+      const nextDefault = remaining[0];
+      if (nextDefault) {
+        await ctx.db.patch(nextDefault._id, { isDefault: true });
+        const pref = await ctx.db
+          .query("userPrefs")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .unique();
+        if (pref) {
+          await ctx.db.patch(pref._id, { location: nextDefault.address });
+        } else {
+          await ctx.db.insert("userPrefs", {
+            userId,
+            location: nextDefault.address,
+            theme: "dark",
+          });
+        }
+      }
+    }
+    return { ok: true };
+  },
+});
+
 export const adminStatus = query({
   args: {},
   handler: async (ctx) => {

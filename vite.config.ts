@@ -8,6 +8,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: ["gummatous-unfervidly-stephanie.ngrok-free.dev"],
+    hmr: {
+      host: "gummatous-unfervidly-stephanie.ngrok-free.dev",
+      protocol: "wss",
+      clientPort: 443,
+    },
   },
   resolve: {
     alias: {

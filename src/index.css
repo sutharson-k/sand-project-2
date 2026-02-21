@@ -38,6 +38,7 @@
   --admin-reject-bg: #fdecea;
   --admin-reject-text: #c0392b;
   --admin-primary: #2b2014;
+  --admin-primary-text: #ffffff;
 }
 
 [data-theme="dark"] {
@@ -56,6 +57,7 @@
   --admin-reject-bg: #3a1f1f;
   --admin-reject-text: #fca5a5;
   --admin-primary: #f2e9df;
+  --admin-primary-text: #1b140c;
 }
 
 .admin-shell {
@@ -202,7 +204,18 @@
   padding: 10px 12px;
   font-size: 0.9rem;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background: transparent;
+  background: var(--admin-card);
+  color: var(--admin-text);
+}
+
+.admin-form-grid select,
+.admin-form-grid textarea {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: var(--admin-card);
   color: var(--admin-text);
 }
 
@@ -230,7 +243,7 @@
 
 .admin-primary {
   background: var(--admin-primary);
-  color: var(--admin-text);
+  color: var(--admin-primary-text);
   border: 1px solid var(--admin-border);
 }
 
@@ -262,6 +275,109 @@
 .admin-card .admin-link {
   display: inline-block;
   margin-top: 16px;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.admin-modal-card {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow);
+  border-radius: 20px;
+  max-width: 720px;
+  width: 100%;
+  padding: 24px;
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.admin-modal-close {
+  background: transparent;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.admin-modal-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.admin-modal-label {
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+  margin-bottom: 4px;
+}
+
+.admin-modal-value {
+  font-weight: 600;
+}
+
+.admin-modal-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 12px;
+}
+
+.admin-modal-textarea {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--admin-card);
+  color: var(--admin-text);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  resize: vertical;
+}
+
+.admin-docs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.admin-doc {
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: transparent;
+}
+
+.admin-doc-title {
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+  margin-bottom: 6px;
+}
+
+.admin-doc img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.admin-doc a {
+  color: var(--admin-accent);
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .admin-audit {

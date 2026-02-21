@@ -38,14 +38,6 @@ if not exist node_modules (
   )
 )
 
-if exist "app\\package.json" (
-  echo Building admin dashboard...
-  "%NPM_CMD%" run build:admin
-  if errorlevel 1 (
-    echo WARNING: admin build failed. Check app\\ folder.
-  )
-)
-
 echo Starting dev server...
 start "Sandify Dev" cmd /k ""%NPM_CMD%" run dev"
 

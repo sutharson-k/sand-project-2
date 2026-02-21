@@ -1,5 +1,5 @@
 // ====== SAND DATA (6 types) ======
-const sandTypes = window.__sandTypesData || [
+let sandTypes = window.__sandTypesData || [
     {
         id: 1, name: "River Sand", category: "construction", color: "linear-gradient(135deg,#C2B280,#A89060)", image: "images/river-sand.jpg", price: 850, grain: "0.5 - 2mm", moisture: "5-8%", density: "1520 kg/m³", origin: "River beds", icon: "fa-water",
         desc: "Premium natural river sand ideal for concrete mixing, plastering, and general construction. Sourced from riverbeds with consistent grain size and excellent binding properties. Washed and graded for optimal performance.",
@@ -63,6 +63,8 @@ let state = {
     selectedDealer: null,
     selectedTruck: null,
     orderQuantity: 5,
+    distanceKm: 20,
+    deliveryWindow: 'flexible',
     orders: JSON.parse(localStorage.getItem('sandify_orders')) || [],
     pendingAction: null
 };
@@ -72,6 +74,7 @@ window.state = state;
 function initApp() {
     applyTheme(state.theme);
     if (state.user) showLoggedInUI();
+    updateSandCount();
     createParticles();
     animateCounters();
     renderFeatured();
@@ -79,6 +82,14 @@ function initApp() {
     window.addEventListener('hashchange', handleHashRoute);
     document.getElementById('mobile-menu').addEventListener('click', () => {
         document.getElementById('nav-links').classList.toggle('show');
+    });
+    document.getElementById('notif-btn')?.addEventListener('click', () => {
+        const dd = document.getElementById('notif-dropdown');
+        if (dd) dd.classList.toggle('show');
+        if (dd) dd.style.display = dd.classList.contains('show') ? 'block' : 'none';
+        if (window.__convexMarkNotificationsRead) {
+            window.__convexMarkNotificationsRead();
+        }
     });
     document.querySelectorAll('.nav-link').forEach((link) => {
         link.addEventListener('click', (e) => {
@@ -102,6 +113,11 @@ function initApp() {
     document.addEventListener('click', (e) => {
         const dd = document.getElementById('profile-dropdown');
         if (dd && !e.target.closest('.profile-wrapper')) dd.classList.remove('show');
+        const nd = document.getElementById('notif-dropdown');
+        if (nd && !e.target.closest('.notif-wrapper')) {
+            nd.classList.remove('show');
+            nd.style.display = 'none';
+        }
     });
     // Dropdown actions
     document.querySelectorAll('.dropdown-item[data-action]').forEach(item => {
@@ -130,10 +146,11 @@ function initApp() {
     }
     const termsCheck = document.getElementById('login-terms-check');
     const loginBtn = document.querySelector('#login-form button[type="submit"]');
+    const googleBtn = document.getElementById('btn-google-auth');
     if (termsCheck && loginBtn) {
-        loginBtn.disabled = !termsCheck.checked;
         termsCheck.addEventListener('change', () => {
-            loginBtn.disabled = !termsCheck.checked;
+            if (loginBtn) loginBtn.dataset.termsOk = termsCheck.checked ? 'true' : 'false';
+            if (googleBtn) googleBtn.dataset.termsOk = termsCheck.checked ? 'true' : 'false';
         });
     }
     ['btn-google-auth', 'btn-google-auth-signup'].forEach((id) => {
@@ -141,10 +158,20 @@ function initApp() {
         if (!btn) return;
         btn.addEventListener('click', (e) => {
             e.preventDefault();
+            if (id === 'btn-google-auth') {
+                const termsCheck = document.getElementById('login-terms-check');
+                if (termsCheck && !termsCheck.checked) {
+                    openModal('terms-warning-modal');
+                    return toast('Please accept the Terms & Conditions', 'error');
+                }
+            }
             if (window.__convexAuthSignIn) {
-                window.__convexAuthSignIn('google', { flow: 'signIn', redirectTo: '/' });
+                window.__convexAuthSignIn('google', { flow: 'signIn', redirectTo: window.location.origin });
             }
         });
+    });
+    document.querySelectorAll('.upload-box input[type="file"]').forEach((input) => {
+        input.addEventListener('change', (e) => updateUploadPreview(e.target));
     });
     const magicBtn = document.getElementById('btn-magic-link');
     if (magicBtn) {
@@ -164,6 +191,15 @@ function initApp() {
         signupPwd.addEventListener('input', updateStrength);
         updateStrength();
     }
+}
+
+function updateSandCount() {
+    const count = sandTypes.length || 0;
+    const stat = document.getElementById('sand-count-stat');
+    if (stat) stat.dataset.count = String(count);
+    document.querySelectorAll('.sand-count-text').forEach((el) => {
+        el.textContent = String(count);
+    });
 }
 
 function updateAdminUI() {
@@ -194,43 +230,54 @@ function renderAdminSummary() {
     if (totalSellers) totalSellers.textContent = `Sellers: ${data.totals.sellers}`;
     if (totalTransport) totalTransport.textContent = `Transport: ${data.totals.transporters}`;
 
-    const latest = document.getElementById('admin-latest-orders');
-    if (latest) {
-        latest.innerHTML = data.latestOrders.map((o) => `
-            <div class="admin-row"><span>${o.orderNumber}</span><span>${o.status}</span></div>
-        `).join('') || '<div class="admin-row">No recent orders</div>';
-    }
-    const sellers = document.getElementById('admin-latest-sellers');
-    if (sellers) {
-        sellers.innerHTML = data.latestSellers.map((s) => `
-            <div class="admin-row" data-app-id="${s._id}" data-kind="seller">
-                <span>${s.company}</span>
-                <span class="admin-status">${s.status}</span>
-                ${s.status === 'pending' ? `
-                    <span class="admin-actions">
-                        <button class="admin-btn admin-approve" data-status="approved">Approve</button>
-                        <button class="admin-btn admin-reject" data-status="rejected">Reject</button>
-                    </span>
-                ` : ''}
-            </div>
-        `).join('') || '<div class="admin-row">No seller applications</div>';
-    }
-    const transporters = document.getElementById('admin-latest-transporters');
-    if (transporters) {
-        transporters.innerHTML = data.latestTransporters.map((t) => `
-            <div class="admin-row" data-app-id="${t._id}" data-kind="transport">
-                <span>${t.company}</span>
-                <span class="admin-status">${t.status}</span>
-                ${t.status === 'pending' ? `
-                    <span class="admin-actions">
-                        <button class="admin-btn admin-approve" data-status="approved">Approve</button>
-                        <button class="admin-btn admin-reject" data-status="rejected">Reject</button>
-                    </span>
-                ` : ''}
-            </div>
-        `).join('') || '<div class="admin-row">No transport applications</div>';
-    }
+    renderAdminList('admin-latest-orders', data.latestOrders, 'order');
+    renderAdminList('admin-latest-sellers', data.latestSellers, 'seller');
+    renderAdminList('admin-latest-transporters', data.latestTransporters, 'transport');
     bindAdminActions();
+}
+
+function renderAdminList(containerId, items, kind) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'admin-row';
+        empty.textContent = kind === 'order' ? 'No recent orders' : (kind === 'seller' ? 'No seller applications' : 'No transport applications');
+        container.appendChild(empty);
+        return;
+    }
+    items.forEach((item) => {
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        if (kind !== 'order') {
+            row.dataset.appId = item._id;
+            row.dataset.kind = kind;
+        }
+        const left = document.createElement('span');
+        left.textContent = kind === 'order' ? item.orderNumber : item.company;
+        const right = document.createElement('span');
+        right.className = 'admin-status';
+        right.textContent = item.status;
+        row.appendChild(left);
+        row.appendChild(right);
+        if (kind !== 'order' && item.status === 'pending') {
+            const actions = document.createElement('span');
+            actions.className = 'admin-actions';
+            const approve = document.createElement('button');
+            approve.className = 'admin-btn admin-approve';
+            approve.dataset.status = 'approved';
+            approve.textContent = 'Approve';
+            const reject = document.createElement('button');
+            reject.className = 'admin-btn admin-reject';
+            reject.dataset.status = 'rejected';
+            reject.textContent = 'Reject';
+            actions.appendChild(approve);
+            actions.appendChild(reject);
+            row.appendChild(actions);
+        }
+        container.appendChild(row);
+    });
 }
 
 function bindAdminActions() {
@@ -361,7 +408,7 @@ function handleLogin(e) {
     e.preventDefault();
     const termsCheck = document.getElementById('login-terms-check');
     if (termsCheck && !termsCheck.checked) {
-        openModal('terms-modal');
+        openModal('terms-warning-modal');
         return toast('Please accept the Terms & Conditions', 'error');
     }
     const email = document.getElementById('login-email').value;
@@ -423,6 +470,8 @@ function handleLogout() {
     document.getElementById('profile-wrapper').style.display = 'none';
     document.getElementById('btn-login').style.display = 'flex';
     document.getElementById('btn-nav-location').style.display = 'none';
+    const notif = document.getElementById('notif-wrapper');
+    if (notif) notif.style.display = 'none';
     navigateTo('home');
     toast('You have been signed out.', 'info');
 }
@@ -431,6 +480,8 @@ function showLoggedInUI() {
     document.getElementById('btn-login').style.display = 'none';
     document.getElementById('profile-wrapper').style.display = 'block';
     document.getElementById('btn-nav-location').style.display = 'flex';
+    const notif = document.getElementById('notif-wrapper');
+    if (notif) notif.style.display = 'block';
     const initial = state.user.name.charAt(0).toUpperCase();
     document.getElementById('profile-avatar').textContent = initial;
     document.getElementById('dropdown-avatar').textContent = initial;
@@ -596,7 +647,11 @@ function viewSandDetail(id) {
     if (!sand) return;
     state.selectedSand = sand;
     const sandKey = String(sand.dbId || sand._id || sand.id);
+    if (window.__setSelectedSandId) {
+        window.__setSelectedSandId(sandKey);
+    }
     const sellersForSand = sellerListings.filter(l => String(l.sandId) === sandKey);
+    const sandReviews = (window.__sandReviewsData || []).filter(r => String(r.sandId) === sandKey);
     const sellersHtml = sellersForSand.length
         ? `<div class="detail-sellers">
             <h4>Available Sellers</h4>
@@ -630,12 +685,71 @@ function viewSandDetail(id) {
                 </div>
                 <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px"><strong>Applications:</strong> ${escapeHtml(sand.uses)}</p>
                 ${sellersHtml}
+                <div id="reviews-container" class="detail-sellers" style="margin-top:12px;"></div>
+                ${window.__isAdmin ? `
+                    <button class="btn btn-outline btn-full" style="margin-top:12px" onclick="removeSandTypePrompt('${sandKey}')">
+                        <i class="fas fa-trash"></i> Remove Sand Type
+                    </button>
+                ` : ''}
                 <button class="btn btn-primary btn-large btn-full" onclick="goToDealers()">
                     <i class="fas fa-shopping-cart"></i> Order This Sand
                 </button>
             </div>
         </div>`;
+    renderReviews(sandReviews);
     navigateTo('detail');
+}
+
+function renderReviews(items) {
+    const container = document.getElementById('reviews-container');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+        container.classList.add('empty');
+        container.textContent = 'No reviews yet.';
+        return;
+    }
+    container.classList.remove('empty');
+    const title = document.createElement('h4');
+    title.textContent = 'Reviews';
+    container.appendChild(title);
+    items.forEach((r) => {
+        const row = document.createElement('div');
+        row.className = 'detail-seller-row';
+        const stars = document.createElement('span');
+        stars.textContent = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+        const comment = document.createElement('span');
+        comment.textContent = r.comment;
+        row.appendChild(stars);
+        row.appendChild(comment);
+        container.appendChild(row);
+    });
+}
+
+function removeSandTypePrompt(sandId) {
+    window.__pendingRemoveSandId = sandId;
+    const reasonEl = document.getElementById('remove-sand-reason');
+    if (reasonEl) reasonEl.value = '';
+    openModal('remove-sand-modal');
+}
+
+function confirmRemoveSand() {
+    const sandId = window.__pendingRemoveSandId;
+    const reason = document.getElementById('remove-sand-reason')?.value || '';
+    if (!sandId || !reason.trim()) {
+        return toast('Reason is required', 'error');
+    }
+    if (window.__convexRemoveSandType) {
+        window.__convexRemoveSandType({ sandId, reason: reason.trim() })
+            .then(() => {
+                sandTypes = sandTypes.filter(s => String(s.dbId || s._id || s.id) !== String(sandId));
+                renderCatalog();
+                navigateTo('catalog');
+                closeModal('remove-sand-modal');
+                toast('Sand type removed', 'success');
+            })
+            .catch(() => toast('Unable to remove sand type', 'error'));
+    }
 }
 
 // ====== DEALERS ======
@@ -651,26 +765,63 @@ function goToDealers() {
     const listings = sellerListings.filter(l => String(l.sandId) === sandKey);
     const list = document.getElementById('dealers-list');
     document.getElementById('dealer-subtitle').textContent = `Verified sellers for ${state.selectedSand.name}`;
+    list.innerHTML = '';
     if (listings.length === 0) {
-        list.innerHTML = '<div class="no-results"><i class="fas fa-store"></i><h3>No sellers yet</h3><p>Please check back soon.</p></div>';
+        const empty = document.createElement('div');
+        empty.className = 'no-results';
+        empty.innerHTML = '<i class="fas fa-store"></i><h3>No sellers yet</h3><p>Please check back soon.</p>';
+        list.appendChild(empty);
         navigateTo('dealers');
         return;
     }
-    list.innerHTML = listings.map(d => {
+    listings.forEach((d) => {
         const price = Number(d.price);
-        return `<div class="dealer-card" onclick="selectDealer('${d.listingId}', ${price}, this)">
-            <div class="dealer-avatar" style="background:${state.selectedSand.color}">${escapeHtml(d.company).charAt(0)}</div>
-            <div class="dealer-info">
-                <h3>${escapeHtml(d.company)}</h3>
-                <div class="dealer-location"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(d.location)}</div>
-                <div class="dealer-rating">Verified Seller</div>
-            </div>
-            <div class="dealer-price">
-                <div class="price">₹${price.toLocaleString('en-IN')}</div>
-                <div class="price-unit">per ton</div>
-            </div>
-        </div>`;
-    }).join('');
+        const card = document.createElement('div');
+        card.className = 'dealer-card';
+        card.addEventListener('click', () => selectDealer(d.listingId, price, card));
+        const avatar = document.createElement('div');
+        avatar.className = 'dealer-avatar';
+        avatar.style.background = state.selectedSand.color;
+        avatar.textContent = (d.company || '').charAt(0);
+        const info = document.createElement('div');
+        info.className = 'dealer-info';
+        const h3 = document.createElement('h3');
+        h3.textContent = d.company;
+        const loc = document.createElement('div');
+        loc.className = 'dealer-location';
+        loc.innerHTML = '<i class="fas fa-map-marker-alt"></i> ';
+        const locText = document.createElement('span');
+        locText.textContent = d.location;
+        loc.appendChild(locText);
+        const rating = document.createElement('div');
+        rating.className = 'dealer-rating';
+        rating.textContent = 'Verified Seller';
+        const availability = document.createElement('div');
+        availability.className = 'dealer-availability';
+        const stockLabel = typeof d.availableTons === 'number'
+            ? `${d.availableTons} tons available`
+            : 'Stock available';
+        const restockLabel = d.nextRestockLabel ? ` • Restock: ${d.nextRestockLabel}` : '';
+        availability.textContent = `${d.availability === 'limited' ? 'Limited' : 'Available'} — ${stockLabel}${restockLabel}`;
+        info.appendChild(h3);
+        info.appendChild(loc);
+        info.appendChild(rating);
+        info.appendChild(availability);
+        const priceWrap = document.createElement('div');
+        priceWrap.className = 'dealer-price';
+        const priceEl = document.createElement('div');
+        priceEl.className = 'price';
+        priceEl.textContent = `₹${price.toLocaleString('en-IN')}`;
+        const unit = document.createElement('div');
+        unit.className = 'price-unit';
+        unit.textContent = 'per ton';
+        priceWrap.appendChild(priceEl);
+        priceWrap.appendChild(unit);
+        card.appendChild(avatar);
+        card.appendChild(info);
+        card.appendChild(priceWrap);
+        list.appendChild(card);
+    });
     navigateTo('dealers');
 }
 
@@ -703,20 +854,38 @@ function goToTransport() {
         icon: t.icon,
         capacity: t.capacity
     }));
-    list.innerHTML = available.map(t => {
+    list.innerHTML = '';
+    available.forEach((t) => {
         const cost = t.baseCost + (t.perTon * state.orderQuantity);
-        return `<div class="transport-card" onclick="selectTruck('${t.transporterId ?? t.id}', this)">
-            <div class="transport-icon"><i class="fas ${t.icon}"></i></div>
-            <div class="transport-info">
-                <h3>${t.company || t.name}</h3>
-                <p><i class="fas fa-box"></i> ${t.capacity} &nbsp;|&nbsp; <i class="fas fa-clock"></i> ${t.eta}</p>
-            </div>
-            <div class="transport-price">
-                <div class="price">₹${cost.toLocaleString('en-IN')}</div>
-                <div class="price-unit">delivery</div>
-            </div>
-        </div>`;
-    }).join('');
+        const card = document.createElement('div');
+        card.className = 'transport-card';
+        card.addEventListener('click', () => selectTruck(t.transporterId ?? t.id, card));
+        const icon = document.createElement('div');
+        icon.className = 'transport-icon';
+        icon.innerHTML = `<i class="fas ${t.icon}"></i>`;
+        const info = document.createElement('div');
+        info.className = 'transport-info';
+        const h3 = document.createElement('h3');
+        h3.textContent = t.company || t.name;
+        const p = document.createElement('p');
+        p.innerHTML = `<i class="fas fa-box"></i> ${escapeHtml(t.capacity)} &nbsp;|&nbsp; <i class="fas fa-clock"></i> ${escapeHtml(t.eta)}`;
+        info.appendChild(h3);
+        info.appendChild(p);
+        const priceWrap = document.createElement('div');
+        priceWrap.className = 'transport-price';
+        const priceEl = document.createElement('div');
+        priceEl.className = 'price';
+        priceEl.textContent = `₹${cost.toLocaleString('en-IN')}`;
+        const unit = document.createElement('div');
+        unit.className = 'price-unit';
+        unit.textContent = 'delivery';
+        priceWrap.appendChild(priceEl);
+        priceWrap.appendChild(unit);
+        card.appendChild(icon);
+        card.appendChild(info);
+        card.appendChild(priceWrap);
+        list.appendChild(card);
+    });
     navigateTo('transport');
 }
 
@@ -739,17 +908,17 @@ function goToOrderForm() {
                 <div style="width:60px;height:60px;border-radius:12px;background:${state.selectedSand.color};display:flex;align-items:center;justify-content:center">
                     <i class="fas ${state.selectedSand.icon}" style="color:rgba(255,255,255,0.7);font-size:1.2rem"></i>
                 </div>
-                <div><strong>${state.selectedSand.name}</strong><br><span style="color:var(--text-secondary);font-size:0.85rem">${state.selectedSand.category}</span></div>
+                <div><strong>${escapeHtml(state.selectedSand.name)}</strong><br><span style="color:var(--text-secondary);font-size:0.85rem">${escapeHtml(state.selectedSand.category)}</span></div>
             </div>
         </div>
         <div class="order-section">
             <h3><i class="fas fa-store"></i> Dealer</h3>
-            <p><strong>${state.selectedDealer.name}</strong></p>
+            <p><strong>${escapeHtml(state.selectedDealer.name)}</strong></p>
             <p style="font-size:0.85rem;color:var(--text-secondary)">${state.selectedDealer.location} — ₹${state.selectedDealer.finalPrice.toLocaleString('en-IN')}/ton</p>
         </div>
         <div class="order-section">
             <h3><i class="fas fa-truck"></i> Transport</h3>
-            <p><strong>${state.selectedTruck.name}</strong></p>
+            <p><strong>${escapeHtml(state.selectedTruck.name)}</strong></p>
             <p style="font-size:0.85rem;color:var(--text-secondary)">${state.selectedTruck.capacity} — ETA: ${state.selectedTruck.eta}</p>
         </div>
         <div class="order-section">
@@ -763,13 +932,33 @@ function goToOrderForm() {
             <input type="range" min="1" max="30" value="${state.orderQuantity}" id="qty-slider" oninput="setQty(this.value)" style="width:100%;margin-top:12px;accent-color:var(--primary)">
         </div>
         <div class="order-section">
+            <h3><i class="fas fa-clock"></i> Delivery Window</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Preferred window</label>
+                    <select id="delivery-window" onchange="setDeliveryWindow(this.value)">
+                        <option value="same-day" ${state.deliveryWindow === 'same-day' ? 'selected' : ''}>Same day</option>
+                        <option value="next-day" ${state.deliveryWindow === 'next-day' ? 'selected' : ''}>Next day</option>
+                        <option value="flexible" ${state.deliveryWindow === 'flexible' ? 'selected' : ''}>Flexible (2-3 days)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estimated distance (km)</label>
+                    <input type="number" min="1" id="distance-km" value="${state.distanceKm}" oninput="setDistanceKm(this.value)" />
+                </div>
+            </div>
+            <div style="margin-top:10px">
+                <button class="btn btn-outline" onclick="openQuoteModal()">Request Bulk Quote</button>
+            </div>
+        </div>
+        <div class="order-section">
             <h3><i class="fas fa-map-marker-alt"></i> Delivery Address</h3>
             <div class="form-group"><label>Full Address *</label><input type="text" placeholder="Site/Plot number, Street..." id="order-address" required></div>
             <div class="form-row">
-                <div class="form-group"><label>City</label><input type="text" value="${state.location.split(',')[0] || ''}" id="order-city"></div>
+                <div class="form-group"><label>City</label><input type="text" value="${escapeHtml(state.location.split(',')[0] || '')}" id="order-city"></div>
                 <div class="form-group"><label>Pincode</label><input type="text" placeholder="400001" id="order-pin"></div>
             </div>
-            <div class="form-group"><label>Contact Number</label><input type="tel" value="${state.user?.phone || ''}" id="order-phone"></div>
+            <div class="form-group"><label>Contact Number</label><input type="tel" value="${escapeHtml(state.user?.phone || '')}" id="order-phone"></div>
             <div class="form-group"><label>Special Instructions</label><textarea placeholder="Gate access, unloading area..." rows="2" id="order-notes"></textarea></div>
         </div>`;
     updatePriceCard();
@@ -788,20 +977,62 @@ function setQty(val) {
     updatePriceCard();
 }
 
+function setDeliveryWindow(val) {
+    state.deliveryWindow = val;
+    updatePriceCard();
+}
+
+function setDistanceKm(val) {
+    state.distanceKm = Math.max(1, parseInt(val || '1'));
+    updatePriceCard();
+}
+
+let pricingRequestId = 0;
+
 function updatePriceCard() {
     const sandCost = state.selectedDealer.finalPrice * state.orderQuantity;
     const transportCost = state.selectedTruck.baseCost + (state.selectedTruck.perTon * state.orderQuantity);
-    const gst = Math.round((sandCost + transportCost) * 0.05);
-    const total = sandCost + transportCost + gst;
-    document.getElementById('price-card').innerHTML = `
+    const distanceFee = Math.round(state.distanceKm * 12);
+    const windowMultiplier = state.deliveryWindow === 'same-day' ? 1.15 : state.deliveryWindow === 'next-day' ? 1.05 : 1;
+    const windowFee = Math.round((sandCost + transportCost) * (windowMultiplier - 1));
+    const gst = Math.round((sandCost + transportCost + distanceFee + windowFee) * 0.05);
+    const total = sandCost + transportCost + distanceFee + windowFee + gst;
+    const priceCard = document.getElementById('price-card');
+    priceCard.innerHTML = `
         <h3><i class="fas fa-receipt" style="color:var(--primary)"></i> Price Breakdown</h3>
         <div class="price-row"><span class="label">Sand (${state.orderQuantity} tons × ₹${state.selectedDealer.finalPrice.toLocaleString('en-IN')})</span><span>₹${sandCost.toLocaleString('en-IN')}</span></div>
         <div class="price-row"><span class="label">Transport</span><span>₹${transportCost.toLocaleString('en-IN')}</span></div>
+        <div class="price-row"><span class="label">Distance (${state.distanceKm} km)</span><span>₹${distanceFee.toLocaleString('en-IN')}</span></div>
+        <div class="price-row"><span class="label">Delivery window</span><span>₹${windowFee.toLocaleString('en-IN')}</span></div>
         <div class="price-row"><span class="label">GST (5%)</span><span>₹${gst.toLocaleString('en-IN')}</span></div>
         <div class="price-row total"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
         <button class="btn btn-primary btn-full btn-large" style="margin-top:20px" onclick="goToPayment(${total})">
             <i class="fas fa-credit-card"></i> Proceed to Pay
         </button>`;
+
+    if (!window.__convexCalculatePrice || !state.selectedDealer?.id) return;
+    const requestId = ++pricingRequestId;
+    window.__convexCalculatePrice({
+        listingId: state.selectedDealer.id,
+        transporterId: state.selectedTruck?.transporterId || undefined,
+        truckId: state.selectedTruck?.dbId || undefined,
+        quantity: state.orderQuantity,
+        distanceKm: state.distanceKm,
+        deliveryWindow: state.deliveryWindow
+    }).then((serverPrice) => {
+        if (!serverPrice || requestId !== pricingRequestId) return;
+        priceCard.innerHTML = `
+            <h3><i class="fas fa-receipt" style="color:var(--primary)"></i> Price Breakdown</h3>
+            <div class="price-row"><span class="label">Sand</span><span>₹${serverPrice.sandCost.toLocaleString('en-IN')}</span></div>
+            <div class="price-row"><span class="label">Transport</span><span>₹${serverPrice.transportCost.toLocaleString('en-IN')}</span></div>
+            <div class="price-row"><span class="label">Distance</span><span>₹${serverPrice.distanceFee.toLocaleString('en-IN')}</span></div>
+            <div class="price-row"><span class="label">Delivery window</span><span>₹${serverPrice.windowFee.toLocaleString('en-IN')}</span></div>
+            <div class="price-row"><span class="label">GST (5%)</span><span>₹${serverPrice.gst.toLocaleString('en-IN')}</span></div>
+            <div class="price-row total"><span>Total</span><span>₹${serverPrice.total.toLocaleString('en-IN')}</span></div>
+            <button class="btn btn-primary btn-full btn-large" style="margin-top:20px" onclick="goToPayment(${serverPrice.total})">
+                <i class="fas fa-credit-card"></i> Proceed to Pay
+            </button>`;
+    }).catch(() => {});
 }
 
 // ====== PAYMENT ======
@@ -838,6 +1069,45 @@ function goToPayment(total) {
             </div>
         </div>`;
     navigateTo('payment');
+}
+
+function openQuoteModal() {
+    if (!state.user) return showAuth('login');
+    const sandName = state.selectedSand?.name || '';
+    const qtyEl = document.getElementById('quote-qty');
+    const windowEl = document.getElementById('quote-window');
+    const addressEl = document.getElementById('quote-address');
+    const sandEl = document.getElementById('quote-sand');
+    if (sandEl) sandEl.textContent = sandName;
+    if (qtyEl) qtyEl.value = state.orderQuantity;
+    if (windowEl) windowEl.value = state.deliveryWindow;
+    if (addressEl) addressEl.value = state.location || '';
+    openModal('quote-modal');
+}
+
+function submitQuoteRequest(e) {
+    e.preventDefault();
+    const qty = parseInt(document.getElementById('quote-qty')?.value || '0', 10);
+    const deliveryWindow = document.getElementById('quote-window')?.value || 'flexible';
+    const address = document.getElementById('quote-address')?.value || '';
+    const notes = document.getElementById('quote-notes')?.value || '';
+    if (!qty || !address) {
+        return toast('Quantity and address are required', 'error');
+    }
+    if (!window.__convexSubmitQuoteRequest) {
+        return toast('Quote service unavailable', 'error');
+    }
+    window.__convexSubmitQuoteRequest({
+        sandId: state.selectedSand?.dbId,
+        sellerId: state.selectedDealer?.sellerId,
+        quantity: qty,
+        deliveryWindow,
+        address,
+        notes: notes.trim()
+    }).then(() => {
+        closeModal('quote-modal');
+        toast('Quote request sent', 'success');
+    }).catch(() => toast('Unable to submit quote', 'error'));
 }
 
 function selectPayment(el) {
@@ -878,7 +1148,9 @@ function processPayment(total) {
         id: orderId, orderNumber, sand: state.selectedSand.name, dealer: state.selectedDealer.name,
         transport: (state.selectedTruck.company || state.selectedTruck.name), quantity: state.orderQuantity,
         total, date: new Date().toLocaleDateString('en-IN'), status: 'processing',
-        color: state.selectedSand.color, icon: state.selectedSand.icon
+        color: state.selectedSand.color, icon: state.selectedSand.icon,
+        sellerId: state.selectedDealer.sellerId || null,
+        transporterId: state.selectedTruck.transporterId || null
     };
     state.orders.push(order);
     localStorage.setItem('sandify_orders', JSON.stringify(state.orders));
@@ -1110,12 +1382,12 @@ function goToTracking(orderId) {
         <div class="tracking-header">
             <h1><i class="fas fa-map-marked-alt" style="color:var(--primary)"></i> Live Tracking</h1>
             <p>Real-time order tracking</p>
-            <div class="tracking-order-id">Order #${order.id}</div>
+            <div class="tracking-order-id">Order #${escapeHtml(order.id)}</div>
         </div>
         <div class="tracking-map">
             <div class="tracking-map-content">
                 <div class="truck-anim"><i class="fas fa-truck-moving"></i></div>
-                <div class="map-label">Simulated Live Map — ${state.location || 'Your Location'}</div>
+                <div class="map-label">Simulated Live Map — ${escapeHtml(state.location || 'Your Location')}</div>
             </div>
         </div>
         <div class="tracking-timeline" id="tracking-timeline">
@@ -1123,10 +1395,10 @@ function goToTracking(orderId) {
                 <div class="timeline-content"><h4>Order Confirmed</h4><p>Your order has been placed successfully</p><div class="time">${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div></div>
             </div>
             <div class="timeline-item" id="tl-1"><div class="timeline-dot"><i class="fas fa-spinner"></i></div>
-                <div class="timeline-content"><h4>Quarry Processing</h4><p>${order.dealer} is preparing your ${order.sand}</p><div class="time">Estimated: 15 min</div></div>
+                <div class="timeline-content"><h4>Quarry Processing</h4><p>${escapeHtml(order.dealer)} is preparing your ${escapeHtml(order.sand)}</p><div class="time">Estimated: 15 min</div></div>
             </div>
             <div class="timeline-item" id="tl-2"><div class="timeline-dot"><i class="fas fa-spinner"></i></div>
-                <div class="timeline-content"><h4>Loading & Dispatch</h4><p>Sand loaded onto ${order.transport}</p><div class="time">Pending</div></div>
+                <div class="timeline-content"><h4>Loading & Dispatch</h4><p>Sand loaded onto ${escapeHtml(order.transport)}</p><div class="time">Pending</div></div>
             </div>
             <div class="timeline-item" id="tl-3"><div class="timeline-dot"><i class="fas fa-spinner"></i></div>
                 <div class="timeline-content"><h4>In Transit</h4><p>Your order is on the way</p><div class="time">Pending</div></div>
@@ -1140,7 +1412,14 @@ function goToTracking(orderId) {
             <div class="eta-time" id="eta-text">Calculating...</div>
         </div>`;
     navigateTo('tracking');
-    simulateTracking();
+    if (window.__setTrackingOrderId && order.dbId) {
+        window.__setTrackingOrderId(order.dbId);
+    }
+    if (window.__trackingUpdatesData && window.__trackingUpdatesData.length) {
+        renderTrackingUpdates(window.__trackingUpdatesData);
+    } else {
+        simulateTracking();
+    }
 }
 
 function simulateTracking() {
@@ -1186,47 +1465,78 @@ function switchSellerTab(tab, el) {
 function handleSupplierSubmit(e) {
     e.preventDefault();
     const form = document.getElementById('supplier-form');
-    const inputs = form.querySelectorAll('input, select, textarea');
-    const company = inputs[0].value.trim();
-    const owner = inputs[1].value.trim();
-    const email = inputs[2].value.trim();
-    const phone = inputs[3].value.trim();
-    const location = inputs[6].value.trim();
-    const details = `${inputs[4].value.trim()} | ${inputs[5].value.trim()} | ${inputs[6].value.trim()} | ${inputs[7].value.trim()} | ${inputs[8].value.trim()} | ${inputs[9].value.trim()} | ${inputs[10].value.trim()} | ${inputs[11].value.trim()}`;
-    if (window.__convexSubmitSellerApp && state.user) {
-        window.__convexSubmitSellerApp({
-            company,
-            contactName: owner,
-            phone,
-            email,
-            location,
-            details
-        }).catch(() => {});
+    const company = document.getElementById('supplier-company')?.value.trim() || '';
+    const owner = document.getElementById('supplier-owner')?.value.trim() || '';
+    const email = document.getElementById('supplier-email')?.value.trim() || '';
+    const phone = document.getElementById('supplier-phone')?.value.trim() || '';
+    const quarryName = document.getElementById('supplier-quarry-name')?.value.trim() || '';
+    const quarryLicense = document.getElementById('supplier-quarry-license')?.value.trim() || '';
+    const quarryLocation = document.getElementById('supplier-quarry-location')?.value.trim() || '';
+    const state = document.getElementById('supplier-state')?.value.trim() || '';
+    const sandTypes = document.getElementById('supplier-sand-types')?.value.trim() || '';
+    const capacity = document.getElementById('supplier-capacity')?.value.trim() || '';
+    const radius = document.getElementById('supplier-radius')?.value.trim() || '';
+    const location = [quarryLocation, state].filter(Boolean).join(', ');
+    const details = `${quarryName} | ${quarryLicense} | ${location} | Radius: ${radius}km | ${sandTypes} | ${capacity}`;
+    if (!validateRequiredUploads(form)) {
+        toast('Please upload all required documents', 'error');
+        return;
     }
+    const submit = async () => {
+        let documents = [];
+        try {
+            documents = await collectApplicationDocuments(form);
+        } catch (err) {}
+        if (window.__convexSubmitSellerApp && state.user) {
+            window.__convexSubmitSellerApp({
+                company,
+                contactName: owner,
+                phone,
+                email,
+                location,
+                details,
+                documents
+            }).catch(() => {});
+        }
+    };
+    submit();
     showSuccess('Application Submitted!', 'Your quarry registration is under review. We will notify you after approval.', () => navigateTo('home'));
 }
 function handleTransportSubmit(e) {
     e.preventDefault();
     const form = document.getElementById('transport-form');
-    const inputs = form.querySelectorAll('input, select, textarea');
-    const company = inputs[0].value.trim();
-    const owner = inputs[1].value.trim();
-    const email = inputs[2].value.trim();
-    const phone = inputs[3].value.trim();
-    const vehicleType = inputs[6].value.trim();
-    const capacity = inputs[7].value.trim();
-    const baseLocation = inputs[8].value.trim();
-    if (window.__convexSubmitTransportApp && state.user) {
-        window.__convexSubmitTransportApp({
-            company,
-            contactName: owner,
-            phone,
-            email,
-            vehicleType,
-            capacity,
-            baseLocation
-        }).catch(() => {});
+    const company = document.getElementById('transport-company')?.value.trim() || '';
+    const owner = document.getElementById('transport-owner')?.value.trim() || '';
+    const email = document.getElementById('transport-email')?.value.trim() || '';
+    const phone = document.getElementById('transport-phone')?.value.trim() || '';
+    const vehicleType = document.getElementById('transport-vehicle-type')?.value.trim() || '';
+    const capacity = document.getElementById('transport-capacity')?.value.trim() || '';
+    const baseLocation = document.getElementById('transport-base-location')?.value.trim() || '';
+    const radius = document.getElementById('transport-radius')?.value.trim() || '';
+    const baseLocationWithMeta = `${baseLocation} | Radius: ${radius}km`;
+    if (!validateRequiredUploads(form)) {
+        toast('Please upload all required documents', 'error');
+        return;
     }
+    const submit = async () => {
+        let documents = [];
+        try {
+            documents = await collectApplicationDocuments(form);
+        } catch (err) {}
+        if (window.__convexSubmitTransportApp && state.user) {
+            window.__convexSubmitTransportApp({
+                company,
+                contactName: owner,
+                phone,
+                email,
+                vehicleType,
+                capacity,
+                baseLocation: baseLocationWithMeta,
+                documents
+            }).catch(() => {});
+        }
+    };
+    submit();
     showSuccess('Application Submitted!', 'Your fleet registration is under review. We will notify you after approval.', () => navigateTo('home'));
 }
 
@@ -1237,15 +1547,110 @@ function renderProfile() {
     c.innerHTML = `
         <div class="profile-card">
             <div class="profile-large-avatar">${state.user.name.charAt(0).toUpperCase()}</div>
-            <h2>${state.user.name}</h2>
-            <p class="profile-email">${state.user.email}</p>
+            <h2>${escapeHtml(state.user.name)}</h2>
+            <p class="profile-email">${escapeHtml(state.user.email)}</p>
             <div class="profile-detail-grid">
-                <div class="profile-detail-item"><div class="pd-label">Phone</div><div class="pd-value">${state.user.phone}</div></div>
-                <div class="profile-detail-item"><div class="pd-label">Member Since</div><div class="pd-value">${state.user.joined}</div></div>
-                <div class="profile-detail-item"><div class="pd-label">Location</div><div class="pd-value">${state.location || 'Not set'}</div></div>
+                <div class="profile-detail-item"><div class="pd-label">Phone</div><div class="pd-value">${escapeHtml(state.user.phone)}</div></div>
+                <div class="profile-detail-item"><div class="pd-label">Member Since</div><div class="pd-value">${escapeHtml(state.user.joined)}</div></div>
+                <div class="profile-detail-item"><div class="pd-label">Location</div><div class="pd-value">${escapeHtml(state.location || 'Not set')}</div></div>
                 <div class="profile-detail-item"><div class="pd-label">Total Orders</div><div class="pd-value">${state.orders.length}</div></div>
             </div>
+        </div>
+        <div class="profile-card" style="margin-top:20px">
+            <h3>Saved Locations</h3>
+            <div class="location-form">
+                <input type="text" id="location-label" placeholder="Label (Home, Site A)">
+                <input type="text" id="location-address" placeholder="Full address">
+                <label style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="location-default">
+                    Set as default
+                </label>
+                <button class="btn btn-outline" onclick="addSavedLocation()">Add Location</button>
+            </div>
+            <div id="locations-list" class="locations-list"></div>
+        </div>
+        <div class="profile-card" style="margin-top:20px">
+            <h3>Quote Requests</h3>
+            <div id="quote-requests-list" class="quote-requests-list"></div>
         </div>`;
+    renderLocations(window.__userLocationsData || []);
+    renderQuoteRequests(window.__quoteRequestsData || []);
+}
+
+function addSavedLocation() {
+    const label = document.getElementById('location-label')?.value.trim() || '';
+    const address = document.getElementById('location-address')?.value.trim() || '';
+    const makeDefault = document.getElementById('location-default')?.checked || false;
+    if (!label || !address) {
+        return toast('Label and address required', 'error');
+    }
+    if (!window.__convexAddLocation) return;
+    window.__convexAddLocation({ label, address, makeDefault })
+        .then(() => {
+            document.getElementById('location-label').value = '';
+            document.getElementById('location-address').value = '';
+            document.getElementById('location-default').checked = false;
+        })
+        .catch(() => toast('Unable to add location', 'error'));
+}
+
+function renderLocations(items) {
+    const container = document.getElementById('locations-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="no-results">No saved locations yet.</div>';
+        return;
+    }
+    items.forEach((loc) => {
+        const row = document.createElement('div');
+        row.className = 'location-row';
+        row.innerHTML = `
+            <div>
+                <div class="location-name">${escapeHtml(loc.label)} ${loc.isDefault ? '• Default' : ''}</div>
+                <div class="location-address">${escapeHtml(loc.address)}</div>
+            </div>
+            <div class="location-actions">
+                ${loc.isDefault ? '' : `<button class="btn btn-outline" onclick="setDefaultLocation('${loc._id}')">Set Default</button>`}
+                <button class="btn btn-outline" onclick="removeLocation('${loc._id}')">Remove</button>
+            </div>`;
+        container.appendChild(row);
+    });
+}
+
+function setDefaultLocation(id) {
+    if (!window.__convexSetDefaultLocation) return;
+    window.__convexSetDefaultLocation({ locationId: id })
+        .then(() => toast('Default location updated', 'success'))
+        .catch(() => toast('Unable to update location', 'error'));
+}
+
+function removeLocation(id) {
+    if (!window.__convexRemoveLocation) return;
+    window.__convexRemoveLocation({ locationId: id })
+        .then(() => toast('Location removed', 'success'))
+        .catch(() => toast('Unable to remove location', 'error'));
+}
+
+function renderQuoteRequests(items) {
+    const container = document.getElementById('quote-requests-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="no-results">No quote requests yet.</div>';
+        return;
+    }
+    items.forEach((q) => {
+        const row = document.createElement('div');
+        row.className = 'quote-row';
+        row.innerHTML = `
+            <div>
+                <div class="quote-title">${q.quantity} tons • ${escapeHtml(q.deliveryWindow)}</div>
+                <div class="quote-meta">${new Date(q.createdAt).toLocaleDateString('en-IN')} • ${escapeHtml(q.status)}</div>
+                <div class="quote-address">${escapeHtml(q.address)}</div>
+            </div>`;
+        container.appendChild(row);
+    });
 }
 
 function renderOrders() {
@@ -1258,11 +1663,31 @@ function renderOrders() {
         <div class="order-card">
             <div class="order-icon" style="background:${o.color}"><i class="fas ${o.icon}" style="color:rgba(255,255,255,0.8)"></i></div>
             <div class="order-meta">
-                <h4>${o.sand} — ${o.quantity} tons</h4>
-                <p>#${o.id} • ${o.date} • ₹${o.total.toLocaleString('en-IN')}</p>
+                <h4>${escapeHtml(o.sand)} — ${escapeHtml(o.quantity)} tons</h4>
+                <p>#${escapeHtml(o.id)} • ${escapeHtml(o.date)} • ₹${o.total.toLocaleString('en-IN')}</p>
             </div>
             <span class="order-status delivered">Delivered</span>
+            ${o.status === 'delivered' && o.dbId ? `
+                <button class="btn btn-outline" style="margin-left:auto;" onclick="promptReview('${o.dbId}')">Rate</button>
+            ` : ''}
         </div>`).join('');
+}
+
+function promptReview(orderId) {
+    const ratingStr = prompt('Rate this order (1-5):');
+    const rating = parseInt(ratingStr, 10);
+    if (!rating || rating < 1 || rating > 5) {
+        return toast('Invalid rating', 'error');
+    }
+    const comment = prompt('Write a short review:') || '';
+    if (!comment.trim()) {
+        return toast('Review text required', 'error');
+    }
+    if (window.__convexSubmitReview) {
+        window.__convexSubmitReview({ orderId, rating, comment: comment.trim() })
+            .then(() => toast('Thanks for your review!', 'success'))
+            .catch(() => toast('Unable to submit review', 'error'));
+    }
 }
 
 // ====== UTILITIES ======
@@ -1282,7 +1707,7 @@ function toast(msg, type = 'info') {
     const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
     const t = document.createElement('div');
     t.className = 'toast ' + type;
-    t.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${msg}`;
+    t.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${escapeHtml(msg)}`;
     container.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(100%)'; setTimeout(() => t.remove(), 400); }, 3500);
 }
@@ -1314,6 +1739,9 @@ function animateCounters() {
 window.updateAdminUI = updateAdminUI;
 window.renderAdminSummary = renderAdminSummary;
 window.updatePartnerUI = updatePartnerUI;
+window.__renderTrackingUpdates = renderTrackingUpdates;
+window.__renderLocations = renderLocations;
+window.__renderQuoteRequests = renderQuoteRequests;
 window.__updateSellerListings = (data) => {
     sellerListings = Array.isArray(data) ? data : [];
     renderCatalog();
@@ -1321,3 +1749,160 @@ window.__updateSellerListings = (data) => {
 window.__updateTransporters = (data) => {
     transporters = Array.isArray(data) ? data : [];
 };
+
+window.__renderNotifications = (items) => {
+    const wrapper = document.getElementById('notif-wrapper');
+    const dd = document.getElementById('notif-dropdown');
+    const countEl = document.getElementById('notif-count');
+    if (!wrapper || !dd || !countEl) return;
+    dd.innerHTML = '';
+    if (!items || items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'notif-item';
+        empty.textContent = 'No notifications';
+        dd.appendChild(empty);
+        countEl.style.display = 'none';
+        return;
+    }
+    const unread = items.filter(n => !n.read).length;
+    countEl.textContent = String(unread);
+    countEl.style.display = unread > 0 ? 'inline-flex' : 'none';
+    items.forEach((n) => {
+        const item = document.createElement('div');
+        item.className = 'notif-item';
+        item.textContent = n.message;
+        dd.appendChild(item);
+    });
+};
+
+function detectLocationAddress(type) {
+    if (!navigator.geolocation) {
+        return toast('Geolocation not supported by your browser', 'error');
+    }
+    toast('Detecting your location...', 'info');
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&addressdetails=1`;
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) throw new Error('Geocoding failed');
+            const data = await res.json();
+            const addr = data.address || {};
+            const city = addr.city || addr.town || addr.village || addr.county || '';
+            const state = addr.state || '';
+            const location = [city, state].filter(Boolean).join(', ') || data.display_name || '';
+            if (type === 'supplier') {
+                const locEl = document.getElementById('supplier-quarry-location');
+                if (locEl) locEl.value = location;
+                const stateEl = document.getElementById('supplier-state');
+                if (stateEl && state) stateEl.value = state;
+            } else if (type === 'transport') {
+                const locEl = document.getElementById('transport-base-location');
+                if (locEl) locEl.value = location;
+            }
+        } catch {
+            toast('Unable to detect location', 'error');
+        }
+    }, () => {
+        toast('Unable to get location', 'error');
+    });
+}
+
+function renderTrackingUpdates(items) {
+    if (!items || items.length === 0) return;
+    const timeline = document.getElementById('tracking-timeline');
+    if (!timeline) return;
+    timeline.innerHTML = '';
+    items.slice().reverse().forEach((u) => {
+        const row = document.createElement('div');
+        row.className = 'timeline-item completed';
+        row.innerHTML = `
+            <div class="timeline-dot"><i class="fas fa-check"></i></div>
+            <div class="timeline-content">
+                <h4>${escapeHtml(u.status)}</h4>
+                <p>${escapeHtml(u.message)}</p>
+                <div class="time">${new Date(u.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>`;
+        timeline.appendChild(row);
+    });
+    const last = items[0];
+    const eta = document.getElementById('eta-text');
+    if (eta) {
+        eta.textContent = last.etaMinutes ? `${last.etaMinutes} min` : 'Tracking live';
+    }
+}
+
+async function collectApplicationDocuments(form) {
+    const files = [];
+    form.querySelectorAll('.upload-box').forEach((box) => {
+        const input = box.querySelector('input[type="file"]');
+        const label = box.querySelector('span')?.textContent?.trim() || 'Document';
+        const file = input?.files?.[0];
+        if (file) {
+            files.push({ file, label });
+        }
+    });
+    if (files.length === 0 || !window.__convexGenerateAppUploadUrl) {
+        return [];
+    }
+    const maxBytes = 5 * 1024 * 1024;
+    for (const item of files) {
+        if (item.file.size > maxBytes) {
+            toast('File too large (max 5MB)', 'error');
+            return [];
+        }
+        const okType = /pdf|png|jpe?g/i.test(item.file.type);
+        if (!okType) {
+            toast('Invalid file type. Use PDF/JPG/PNG.', 'error');
+            return [];
+        }
+    }
+    const results = [];
+    for (const item of files) {
+        const uploadUrl = await window.__convexGenerateAppUploadUrl();
+        const res = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': item.file.type },
+            body: item.file,
+        });
+        if (!res.ok) {
+            continue;
+        }
+        const { storageId } = await res.json();
+        results.push({ label: item.label, storageId });
+    }
+    return results;
+}
+
+function validateRequiredUploads(form) {
+    let ok = true;
+    form.querySelectorAll('.upload-box input[type="file"]').forEach((input) => {
+        if (!input.files || !input.files[0]) {
+            ok = false;
+        }
+    });
+    return ok;
+}
+
+function updateUploadPreview(input) {
+    const box = input.closest('.upload-box');
+    if (!box) return;
+    const file = input.files?.[0];
+    if (!file) return;
+    let preview = box.querySelector('.upload-preview');
+    if (!preview) {
+        preview = document.createElement('div');
+        preview.className = 'upload-preview';
+        box.appendChild(preview);
+    }
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            preview.innerHTML = `<img src="${reader.result}" alt="Preview">`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.textContent = file.name;
+    }
+}

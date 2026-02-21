@@ -20,6 +20,18 @@ async function requireAdmin(ctx: any) {
   return hasGoogle ? userId : null;
 }
 
+async function enforceRateLimit(ctx: any, userId: string, table: "sellerApplications" | "transportApplications") {
+  const since = Date.now() - 60 * 1000;
+  const recent = await ctx.db
+    .query(table)
+    .filter((q: any) => q.eq(q.field("userId"), userId))
+    .filter((q: any) => q.gte(q.field("createdAt"), since))
+    .collect();
+  if (recent.length >= 5) {
+    throw new Error("Too many requests. Try again in a minute.");
+  }
+}
+
 export const submitSellerApplication = mutation({
   args: {
     company: v.string(),
@@ -28,12 +40,21 @@ export const submitSellerApplication = mutation({
     email: v.string(),
     location: v.string(),
     details: v.string(),
+    documents: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          storageId: v.id("_storage"),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
+    await enforceRateLimit(ctx, userId, "sellerApplications");
     return await ctx.db.insert("sellerApplications", {
       userId,
       company: args.company,
@@ -44,6 +65,7 @@ export const submitSellerApplication = mutation({
       details: args.details,
       status: "pending",
       createdAt: Date.now(),
+      documents: args.documents ?? [],
     });
   },
 });
@@ -57,12 +79,21 @@ export const submitTransportApplication = mutation({
     vehicleType: v.string(),
     capacity: v.string(),
     baseLocation: v.string(),
+    documents: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          storageId: v.id("_storage"),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
+    await enforceRateLimit(ctx, userId, "transportApplications");
     return await ctx.db.insert("transportApplications", {
       userId,
       company: args.company,
@@ -74,7 +105,19 @@ export const submitTransportApplication = mutation({
       baseLocation: args.baseLocation,
       status: "pending",
       createdAt: Date.now(),
+      documents: args.documents ?? [],
     });
+  },
+});
+
+export const generateApplicationUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -144,6 +187,33 @@ export const updateSellerApplicationStatus = mutation({
         }
       }
     }
+    if (args.status === "rejected") {
+      const app = await ctx.db.get(args.applicationId);
+      if (app) {
+        const roleDoc = await ctx.db
+          .query("userRoles")
+          .withIndex("by_user", (q: any) => q.eq("userId", app.userId))
+          .filter((q: any) => q.eq(q.field("role"), "seller"))
+          .unique();
+        if (roleDoc) {
+          await ctx.db.delete(roleDoc._id);
+        }
+        const profile = await ctx.db
+          .query("sellerProfiles")
+          .withIndex("by_user", (q: any) => q.eq("userId", app.userId))
+          .unique();
+        if (profile) {
+          await ctx.db.delete(profile._id);
+        }
+        const listings = await ctx.db
+          .query("sellerSandListings")
+          .withIndex("by_seller", (q: any) => q.eq("sellerId", app.userId))
+          .collect();
+        for (const listing of listings) {
+          await ctx.db.delete(listing._id);
+        }
+      }
+    }
     await ctx.db.insert("adminAuditLogs", {
       actorId: adminId,
       action: "update_status",
@@ -209,6 +279,33 @@ export const updateTransportApplicationStatus = mutation({
             capacity: app.capacity,
             vehicleType: app.vehicleType,
           });
+        }
+      }
+    }
+    if (args.status === "rejected") {
+      const app = await ctx.db.get(args.applicationId);
+      if (app) {
+        const roleDoc = await ctx.db
+          .query("userRoles")
+          .withIndex("by_user", (q: any) => q.eq("userId", app.userId))
+          .filter((q: any) => q.eq(q.field("role"), "transporter"))
+          .unique();
+        if (roleDoc) {
+          await ctx.db.delete(roleDoc._id);
+        }
+        const profile = await ctx.db
+          .query("transporterProfiles")
+          .withIndex("by_user", (q: any) => q.eq("userId", app.userId))
+          .unique();
+        if (profile) {
+          await ctx.db.delete(profile._id);
+        }
+        const vehicles = await ctx.db
+          .query("transporterVehicles")
+          .withIndex("by_transporter", (q: any) => q.eq("transporterId", app.userId))
+          .collect();
+        for (const vehicle of vehicles) {
+          await ctx.db.delete(vehicle._id);
         }
       }
     }

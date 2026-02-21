@@ -8,8 +8,6 @@
     "dev:frontend": "vite --open --host 0.0.0.0 --port 5173",
     "dev:backend": "convex dev",
     "predev": "convex dev --until-success && convex dashboard",
-    "build:admin": "cd app && npm install && npm run build && node ../scripts/copy_admin_build.cjs",
-    "build:all": "npm run build:admin && npm run build",
     "build": "tsc -b && vite build",
     "lint": "tsc && eslint .  --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

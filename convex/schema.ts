@@ -75,6 +75,14 @@ export default defineSchema({
     details: v.string(),
     status: v.string(),
     createdAt: v.number(),
+    documents: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          storageId: v.id("_storage"),
+        }),
+      ),
+    ),
   }).index("by_user", ["userId"]),
   transportApplications: defineTable({
     userId: v.id("users"),
@@ -87,6 +95,14 @@ export default defineSchema({
     baseLocation: v.string(),
     status: v.string(),
     createdAt: v.number(),
+    documents: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          storageId: v.id("_storage"),
+        }),
+      ),
+    ),
   }).index("by_user", ["userId"]),
   userRoles: defineTable({
     userId: v.id("users"),
@@ -116,16 +132,67 @@ export default defineSchema({
     sellerId: v.id("users"),
     sandId: v.id("sandTypes"),
     price: v.number(),
+    availableTons: v.optional(v.number()),
+    cutoffHour: v.optional(v.number()),
+    nextRestockAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_seller", ["sellerId"])
     .index("by_sand", ["sandId"]),
+  orderTrackingUpdates: defineTable({
+    orderId: v.id("orders"),
+    status: v.string(),
+    message: v.string(),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    etaMinutes: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_order", ["orderId"]),
+  quoteRequests: defineTable({
+    userId: v.id("users"),
+    sandId: v.optional(v.id("sandTypes")),
+    sellerId: v.optional(v.id("users")),
+    quantity: v.number(),
+    deliveryWindow: v.string(),
+    address: v.string(),
+    notes: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
+  userLocations: defineTable({
+    userId: v.id("users"),
+    label: v.string(),
+    address: v.string(),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
   adminAuditLogs: defineTable({
     actorId: v.id("users"),
     action: v.string(),
     targetType: v.string(),
     targetId: v.string(),
     status: v.string(),
+    reason: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_actor", ["actorId"]),
+  reviews: defineTable({
+    userId: v.id("users"),
+    orderId: v.id("orders"),
+    sellerId: v.optional(v.id("users")),
+    transporterId: v.optional(v.id("users")),
+    sandId: v.optional(v.id("sandTypes")),
+    rating: v.number(),
+    comment: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_order", ["orderId"])
+    .index("by_seller", ["sellerId"])
+    .index("by_transporter", ["transporterId"])
+    .index("by_sand", ["sandId"]),
+  notifications: defineTable({
+    userId: v.id("users"),
+    message: v.string(),
+    createdAt: v.number(),
+    read: v.boolean(),
+  }).index("by_user", ["userId"]),
 });

@@ -1,71 +1,86 @@
 # Sandify (Sand Project 2)
 
-Sandify is a simple marketplace website for ordering construction materials (sand, aggregates, gravel, red soil, etc.).
-It connects buyers, suppliers, and transporters in one place.
+A full‑stack marketplace for construction sand that connects buyers, verified suppliers, and transport providers. Built with a Vite + React frontend and a Convex backend, Sandify supports authentication, catalog browsing, ordering, and live status tracking with an admin approval flow.
 
-If you are not technical, this README explains everything in plain words.
+## Highlights
 
-## What this website does (plain English)
+- Buyer ordering flow with pricing, delivery window, and tracking updates
+- Supplier and transporter onboarding with document uploads
+- Seller listings, inventory availability, and transporter fleet management
+- Admin approvals, audit logs, and operational dashboards
+- Convex Auth (Google + email/password)
 
-- Buyers can browse sand types and place orders.
-- Suppliers can apply to list their materials.
-- Transporters can apply to deliver orders.
-- Orders are tracked with statuses (processing -> loading -> delivering -> delivered).
+## Tech Stack
 
-The website is a frontend + backend project:
-- The frontend is the website you see in the browser.
-- The backend (Convex) stores data, handles logins, and manages orders.
+- Frontend: Vite + React
+- Backend: Convex (database, server functions, auth)
+- Auth: Convex Auth with Google + email/password
+- Tooling: ngrok for public tunneling during local dev
 
-## Tech used (short version)
+## Local Development
 
-- Vite + React (frontend)
-- Convex (backend + database + auth)
-- Google login + email/password
-- ngrok (share your local site)
+1) Install dependencies
 
-You do not need to learn all this to run it.
+```bash
+npm install
+```
 
-## How to run it (easy steps)
+2) Start Convex
 
-1) Open a terminal in the project folder:
+```bash
+npx convex dev
+```
 
-   ```bash
-   cd C:\Users\Admin\Desktop\w
-   ```
+3) Start the frontend (Vite)
 
-2) Start the app:
+```bash
+npm run dev
+```
 
-   ```bash
-   run.bat
-   ```
+Or use the convenience script:
 
-That is it.
-The site runs on http://localhost:5173 and ngrok shares it publicly.
+```bash
+run.bat
+```
 
-## Login options
+## Environment Variables
 
-- Email + password
-- Google sign-in (popup)
+Frontend
+- `VITE_CONVEX_URL` (set in `.env`)
 
-## Data and images
+Convex (dashboard env)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `SITE_URL`
+- JWT/OIDC keys (as required by Convex Auth)
 
-- Sand types, dealers, and trucks are stored in Convex.
-- Images are in `public/images` and can also be uploaded to Convex storage.
-- If you want to seed data and upload images:
+## Data Seeding & Images
 
-  ```bash
-  node scripts/upload_images.mjs
-  ```
+Seed sand types, dealers, trucks, and upload images:
 
-## Where things live (simple map)
+```bash
+node scripts/upload_images.mjs
+```
 
-- `src/` - React app shell and Convex wiring
-- `public/` - legacy UI (app.js, styles.css, images)
-- `convex/` - backend functions, schema, auth
-- `run.bat` - starts Vite + Convex + ngrok
+## Project Structure
 
-## Notes
+- `src/` React app shell and Convex wiring
+- `public/` legacy UI assets (`app.js`, `styles.css`, images)
+- `convex/` Convex schema and server functions
+- `scripts/` data seeding and utilities
+- `run.bat` local dev runner (Vite + ngrok)
 
-- If Google login does not work, check `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in your Convex env.
-- If ngrok does not work, run it manually or update `run.bat`.
+## Features in Detail
 
+- Catalog browsing with dealer selection and transport choices
+- Pricing engine with distance and delivery window modifiers
+- Order lifecycle tracking with status timeline
+- Reviews and notifications
+- Multi‑location user profiles
+- Quote requests for bulk/custom orders
+- Partner dashboards (seller + transporter)
+- Admin panel for approvals and audits
+
+## License
+
+Proprietary. All rights reserved.
