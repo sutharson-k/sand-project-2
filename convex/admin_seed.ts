@@ -1,11 +1,12 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 export const seedAdminRoles = mutation({
   args: { emails: v.array(v.string()) },
   handler: async (ctx, args) => {
     const users = await ctx.db.query("users").collect();
-    const emailToId = new Map<string, string>();
+    const emailToId = new Map<string, Id<"users">>();
     for (const user of users) {
       if (user.email) {
         emailToId.set(user.email.toLowerCase(), user._id);
