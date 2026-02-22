@@ -21,6 +21,37 @@ export const listOrderTracking = query({
   },
 });
 
+export const listOrderTrackingPaginated = query({
+  args: {
+    orderId: v.id("orders"),
+    limit: v.number(),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+    const order = await ctx.db.get(args.orderId);
+    if (!order || order.userId !== userId) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+    const res = await ctx.db
+      .query("orderTrackingUpdates")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .order("desc")
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: Math.min(Math.max(args.limit, 1), 50),
+      });
+    return {
+      page: res.page,
+      isDone: res.isDone,
+      continueCursor: res.continueCursor,
+    };
+  },
+});
+
 export const addTrackingUpdate = mutation({
   args: {
     orderId: v.id("orders"),

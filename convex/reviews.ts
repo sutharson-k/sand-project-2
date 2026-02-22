@@ -70,3 +70,26 @@ export const listReviewsForSand = query({
       .take(10);
   },
 });
+
+export const listReviewsForSandPaginated = query({
+  args: {
+    sandId: v.id("sandTypes"),
+    limit: v.number(),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const res = await ctx.db
+      .query("reviews")
+      .withIndex("by_sand", (q) => q.eq("sandId", args.sandId))
+      .order("desc")
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: Math.min(Math.max(args.limit, 1), 50),
+      });
+    return {
+      page: res.page,
+      isDone: res.isDone,
+      continueCursor: res.continueCursor,
+    };
+  },
+});

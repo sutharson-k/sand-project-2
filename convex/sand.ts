@@ -394,3 +394,29 @@ export const listOrders = query({
       .collect();
   },
 });
+
+export const listOrdersPaginated = query({
+  args: {
+    limit: v.number(),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
+    const res = await ctx.db
+      .query("orders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: Math.min(Math.max(args.limit, 1), 100),
+      });
+    return {
+      page: res.page,
+      isDone: res.isDone,
+      continueCursor: res.continueCursor,
+    };
+  },
+});

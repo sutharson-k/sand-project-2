@@ -1067,20 +1067,20 @@ export default function App() {
   const [selectedSandId, setSelectedSandId] = useState<string | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const reviewsForSand = useQuery(
-    api.reviews.listReviewsForSand,
-    selectedSandId ? ({ sandId: selectedSandId } as any) : "skip",
+    api.reviews.listReviewsForSandPaginated,
+    selectedSandId ? ({ sandId: selectedSandId, limit: 20 } as any) : "skip",
   );
   const trackingUpdates = useQuery(
-    api.tracking.listOrderTracking,
-    trackingOrderId ? ({ orderId: trackingOrderId } as any) : "skip",
+    api.tracking.listOrderTrackingPaginated,
+    trackingOrderId ? ({ orderId: trackingOrderId, limit: 20 } as any) : "skip",
   );
   const orders = useQuery(
-    api.sand.listOrders,
-    isAuthenticated ? {} : "skip",
+    api.sand.listOrdersPaginated,
+    isAuthenticated ? ({ limit: 50 } as any) : "skip",
   );
   const quoteRequests = useQuery(
-    api.quotes.listMyQuoteRequests,
-    isAuthenticated ? {} : "skip",
+    api.quotes.listMyQuoteRequestsPaginated,
+    isAuthenticated ? ({ limit: 50 } as any) : "skip",
   );
   const bootstrap = useQuery(api.sand.bootstrap);
   const setPrefs = useMutation(api.users.setPrefs);
@@ -1451,10 +1451,10 @@ export default function App() {
         }, 300);
       }
     }
-    if (orders) {
+    if (orders?.page) {
       (window as any).state = (window as any).state ?? {};
-      (window as any).state.orders = orders;
-      localStorage.setItem("sandify_orders", JSON.stringify(orders));
+      (window as any).state.orders = orders.page;
+      localStorage.setItem("sandify_orders", JSON.stringify(orders.page));
       (window as any).renderOrders?.();
     }
     if (adminStatus) {
@@ -1484,18 +1484,18 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (!reviewsForSand) {
+    if (!reviewsForSand?.page) {
       return;
     }
-    (window as any).__sandReviewsData = reviewsForSand;
+    (window as any).__sandReviewsData = reviewsForSand.page;
   }, [reviewsForSand]);
 
   useEffect(() => {
-    if (!trackingUpdates) {
+    if (!trackingUpdates?.page) {
       return;
     }
-    (window as any).__trackingUpdatesData = trackingUpdates;
-    (window as any).__renderTrackingUpdates?.(trackingUpdates);
+    (window as any).__trackingUpdatesData = trackingUpdates.page;
+    (window as any).__renderTrackingUpdates?.(trackingUpdates.page);
   }, [trackingUpdates]);
 
   useEffect(() => {
@@ -1507,11 +1507,11 @@ export default function App() {
   }, [notifications]);
 
   useEffect(() => {
-    if (!quoteRequests) {
+    if (!quoteRequests?.page) {
       return;
     }
-    (window as any).__quoteRequestsData = quoteRequests;
-    (window as any).__renderQuoteRequests?.(quoteRequests);
+    (window as any).__quoteRequestsData = quoteRequests.page;
+    (window as any).__renderQuoteRequests?.(quoteRequests.page);
   }, [quoteRequests]);
 
   useEffect(() => {
