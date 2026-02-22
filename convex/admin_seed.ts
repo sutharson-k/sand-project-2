@@ -50,3 +50,13 @@ export const listAdminRoles = query({
     }));
   },
 });
+
+export const findUsersByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const users = await ctx.db.query("users").collect();
+    return users
+      .filter((u) => (u.email ?? "").toLowerCase() === args.email.toLowerCase())
+      .map((u) => ({ userId: u._id, email: u.email, name: u.name ?? null }));
+  },
+});
