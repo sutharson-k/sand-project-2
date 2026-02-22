@@ -22,6 +22,20 @@ type AdminLog = {
   createdAt: number;
 };
 
+function maskEmail(email?: string | null) {
+  if (!email) return "";
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email;
+  const maskedName =
+    name.length <= 2 ? `${name[0]}*` : `${name[0]}***${name.slice(-1)}`;
+  const domainParts = domain.split(".");
+  const host = domainParts[0] ?? "";
+  const tld = domainParts.slice(1).join(".") || "com";
+  const maskedHost =
+    host.length <= 2 ? `${host[0]}*` : `${host[0]}***${host.slice(-1)}`;
+  return `${maskedName}@${maskedHost}.${tld}`;
+}
+
 function SellerDashboard({
   data,
   onCreate,
@@ -815,7 +829,7 @@ function AdminPanel({
               <div className="admin-row" key={s._id}>
                 <div>
                   <div className="admin-company">{s.company}</div>
-                  <div className="admin-status">{s.email}</div>
+                  <div className="admin-status">{maskEmail(s.email)}</div>
                 </div>
                 <div className="admin-actions">
                   <button
@@ -849,7 +863,7 @@ function AdminPanel({
               <div className="admin-row" key={t._id}>
                 <div>
                   <div className="admin-company">{t.company}</div>
-                  <div className="admin-status">{t.email}</div>
+                  <div className="admin-status">{maskEmail(t.email)}</div>
                 </div>
                 <div className="admin-actions">
                   <button
