@@ -81,6 +81,7 @@ node scripts/upload_images.mjs
 - Partner dashboards (seller + transporter)
 - Admin panel for approvals and audits
 - Partner document uploads with size/type validation and progress feedback
+- Role-based admin access via `userRoles` (no hardcoded emails)
 
 ## License
 
