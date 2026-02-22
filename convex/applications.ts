@@ -2,16 +2,15 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-const ADMIN_EMAILS = new Set([
-  "dr24072007@gmail.com",
-  "sutharsonmohan@gmail.com",
-]);
-
 async function requireAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
   if (!userId) return null;
-  const user = await ctx.db.get(userId);
-  if (!user?.email || !ADMIN_EMAILS.has(user.email)) return null;
+  const roleDoc = await ctx.db
+    .query("userRoles")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .filter((q: any) => q.eq(q.field("role"), "admin"))
+    .unique();
+  if (!roleDoc) return null;
   const accounts = await ctx.db
     .query("authAccounts")
     .filter((q: any) => q.eq(q.field("userId"), userId))

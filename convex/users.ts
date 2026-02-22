@@ -268,13 +268,12 @@ export const adminStatus = query({
     if (!userId) {
       return { isAdmin: false };
     }
-    const user = await ctx.db.get(userId);
-    const email = user?.email ?? "";
-    const allowlist = new Set([
-      "dr24072007@gmail.com",
-      "sutharsonmohan@gmail.com",
-    ]);
-    if (!allowlist.has(email)) {
+    const roleDoc = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .unique();
+    if (!roleDoc) {
       return { isAdmin: false };
     }
     const accounts = await ctx.db

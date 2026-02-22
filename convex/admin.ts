@@ -2,16 +2,15 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
-const ADMIN_EMAILS = new Set([
-  "dr24072007@gmail.com",
-  "sutharsonmohan@gmail.com",
-]);
-
 async function requireAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
   if (!userId) return null;
-  const user = await ctx.db.get(userId);
-  if (!user?.email || !ADMIN_EMAILS.has(user.email)) return null;
+  const roleDoc = await ctx.db
+    .query("userRoles")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .filter((q: any) => q.eq(q.field("role"), "admin"))
+    .unique();
+  if (!roleDoc) return null;
   const accounts = await ctx.db
     .query("authAccounts")
     .filter((q: any) => q.eq(q.field("userId"), userId))
@@ -19,6 +18,47 @@ async function requireAdmin(ctx: any) {
   const hasGoogle = accounts.some((account: any) => account.provider === "google");
   return hasGoogle ? userId : null;
 }
+
+export const grantAdminRole = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!adminId) {
+      throw new Error("Admin access only");
+    }
+    const existing = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .filter((q: any) => q.eq(q.field("role"), "admin"))
+      .unique();
+    if (existing) {
+      return existing._id;
+    }
+    return await ctx.db.insert("userRoles", {
+      userId: args.userId,
+      role: "admin",
+    });
+  },
+});
+
+export const revokeAdminRole = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!adminId) {
+      throw new Error("Admin access only");
+    }
+    const existing = await ctx.db
+      .query("userRoles")
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .filter((q: any) => q.eq(q.field("role"), "admin"))
+      .unique();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+    return { ok: true };
+  },
+});
 
 export const adminSnapshot = query({
   args: {},
