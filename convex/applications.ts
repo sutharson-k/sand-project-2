@@ -11,12 +11,7 @@ async function requireAdmin(ctx: any) {
     .filter((q: any) => q.eq(q.field("role"), "admin"))
     .unique();
   if (!roleDoc) return null;
-  const accounts = await ctx.db
-    .query("authAccounts")
-    .filter((q: any) => q.eq(q.field("userId"), userId))
-    .collect();
-  const hasGoogle = accounts.some((account: any) => account.provider === "google");
-  return hasGoogle ? userId : null;
+  return userId;
 }
 
 async function enforceRateLimit(ctx: any, userId: string, table: "sellerApplications" | "transportApplications") {

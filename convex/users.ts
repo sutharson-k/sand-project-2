@@ -276,11 +276,6 @@ export const adminStatus = query({
     if (!roleDoc) {
       return { isAdmin: false };
     }
-    const accounts = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .collect();
-    const hasGoogle = accounts.some((account) => account.provider === "google");
-    return { isAdmin: hasGoogle };
+    return { isAdmin: true };
   },
 });
