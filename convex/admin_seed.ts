@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -32,5 +32,21 @@ export const seedAdminRoles = mutation({
       results.push({ email, status: "granted" });
     }
     return results;
+  },
+});
+
+export const listAdminRoles = query({
+  args: {},
+  handler: async (ctx) => {
+    const roles = await ctx.db
+      .query("userRoles")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .collect();
+    const users = await ctx.db.query("users").collect();
+    const userById = new Map(users.map((u) => [u._id, u]));
+    return roles.map((r) => ({
+      userId: r.userId,
+      email: userById.get(r.userId)?.email ?? null,
+    }));
   },
 });
