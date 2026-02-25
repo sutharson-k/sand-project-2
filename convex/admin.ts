@@ -71,6 +71,11 @@ export const adminSnapshot = query({
       .query("quoteRequests")
       .order("desc")
       .take(5);
+    const pendingSandTypes = await ctx.db
+      .query("sandTypes")
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .collect();
     const latestSellers = await ctx.db
       .query("sellerApplications")
       .filter((q) => q.eq(q.field("status"), "pending"))
@@ -125,10 +130,38 @@ export const adminSnapshot = query({
       latestQuotes,
       latestSellers: sellersWithDocs,
       latestTransporters: transportersWithDocs,
+      pendingSandTypes,
       auditLogs,
       approvedSellers: sellers,
       approvedTransporters: transporters,
     };
+  },
+});
+
+export const updateSandTypeStatus = mutation({
+  args: { sandId: v.id("sandTypes"), status: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!adminId) {
+      throw new Error("Admin access only");
+    }
+    if (!["approved", "rejected"].includes(args.status)) {
+      throw new Error("Invalid status");
+    }
+    const sand = await ctx.db.get(args.sandId);
+    if (!sand) {
+      throw new Error("Sand not found");
+    }
+    await ctx.db.patch(args.sandId, { status: args.status });
+    await ctx.db.insert("adminAuditLogs", {
+      actorId: adminId,
+      action: "sand_type_status",
+      targetType: "sandType",
+      targetId: args.sandId,
+      status: args.status,
+      createdAt: Date.now(),
+    });
+    return { ok: true };
   },
 });
 

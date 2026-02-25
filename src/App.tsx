@@ -12,6 +12,14 @@ type AdminApp = {
   documents?: { label: string; url: string }[];
 };
 
+type AdminSandType = {
+  _id: string;
+  name: string;
+  category: string;
+  status: string;
+  createdAt?: number;
+};
+
 type AdminLog = {
   _id: string;
   action: string;
@@ -38,13 +46,14 @@ function maskEmail(email?: string | null) {
 
 function SellerDashboard({
   data,
-  onCreate,
+  onSaveListing,
   onUpload,
   onUpdateInventory,
   approved,
 }: {
   data: any;
-  onCreate: (payload: {
+  onSaveListing: (payload: {
+    sandId?: string;
     name: string;
     category: string;
     price: number;
@@ -66,6 +75,7 @@ function SellerDashboard({
   approved: boolean;
 }) {
   const [form, setForm] = useState({
+    sandId: "",
     name: "",
     category: "",
     price: "",
@@ -95,6 +105,8 @@ function SellerDashboard({
   const listings = data?.listings ?? [];
   const orders = data?.orders ?? [];
 
+  const sandOptions = (window as any).__sandTypesData ?? [];
+
   return (
     <div className="admin-shell">
       <header className="admin-header">
@@ -113,15 +125,56 @@ function SellerDashboard({
           <h2>Add New Sand Type</h2>
         </div>
         <div className="admin-form-grid">
+          <select
+            value={form.sandId}
+            onChange={(e) => {
+              const nextSandId = e.target.value;
+              const sand = sandOptions.find(
+                (s: any) => String(s.dbId ?? s._id ?? s.id) === nextSandId,
+              );
+              setForm({
+                ...form,
+                sandId: nextSandId,
+                name: sand?.name ?? form.name,
+                category: sand?.category ?? form.category,
+              });
+            }}
+            required
+          >
+            <option value="">Select sand type</option>
+            {sandOptions.map((s: any) => {
+              const id = String(s.dbId ?? s._id ?? s.id);
+              return (
+                <option key={id} value={id}>
+                  {s.name} ({s.category})
+                </option>
+              );
+            })}
+          </select>
+          <button
+            type="button"
+            className="admin-primary"
+            onClick={() =>
+              setForm({
+                ...form,
+                sandId: "__new__",
+              })
+            }
+            disabled={form.sandId === "__new__"}
+          >
+            + New Sand Type
+          </button>
           <input
             placeholder="Sand name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            disabled={!form.sandId || form.sandId !== "__new__"}
           />
           <input
             placeholder="Category (construction/industrial)"
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
+            disabled={!form.sandId || form.sandId !== "__new__"}
           />
           <input
             placeholder="Price per ton"
@@ -166,10 +219,17 @@ function SellerDashboard({
         <button
           className="admin-primary"
           onClick={() => {
-            if (!form.name || !form.category || !form.price || !imageStorageId) {
+            if (!form.price || !imageStorageId) {
               return;
             }
-            onCreate({
+            if (!form.sandId) {
+              return;
+            }
+            if (form.sandId === "__new__" && (!form.name || !form.category)) {
+              return;
+            }
+            onSaveListing({
+              sandId: form.sandId === "__new__" ? undefined : form.sandId,
               name: form.name,
               category: form.category,
               price: Number(form.price),
@@ -179,6 +239,7 @@ function SellerDashboard({
               uses: form.uses,
             });
             setForm({
+              sandId: "",
               name: "",
               category: "",
               price: "",
@@ -190,7 +251,11 @@ function SellerDashboard({
           }}
           disabled={uploading}
         >
-          {uploading ? "Uploading..." : "Add Sand Type"}
+          {uploading
+            ? "Uploading..."
+            : form.sandId
+              ? "Add Sand Listing"
+              : "Submit New Sand Type"}
         </button>
       </section>
 
@@ -476,6 +541,7 @@ function AdminPanel({
   onRejectTransport,
   onRevokeSeller,
   onRevokeTransporter,
+  onUpdateSandTypeStatus,
   onSignIn,
 }: {
   isAdmin: boolean;
@@ -487,6 +553,10 @@ function AdminPanel({
   onRejectTransport: (id: string) => void;
   onRevokeSeller: (userId: string, reason: string) => void;
   onRevokeTransporter: (userId: string, reason: string) => void;
+  onUpdateSandTypeStatus: (
+    sandId: string,
+    status: "approved" | "rejected",
+  ) => void;
   onSignIn: () => void;
 }) {
   const [selectedApp, setSelectedApp] = useState<any>(null);
@@ -507,6 +577,7 @@ function AdminPanel({
   const auditLogs = (adminSnapshot?.auditLogs ?? []) as AdminLog[];
   const approvedSellers = (adminSnapshot?.approvedSellers ?? []) as any[];
   const approvedTransporters = (adminSnapshot?.approvedTransporters ?? []) as any[];
+  const pendingSandTypes = (adminSnapshot?.pendingSandTypes ?? []) as AdminSandType[];
 
   if (!isAdmin) {
     return (
@@ -905,6 +976,38 @@ function AdminPanel({
             ))
           )}
         </div>
+        <div className="admin-list">
+          <div className="admin-list-header">
+            <h2>Pending Sand Types</h2>
+            <span>{pendingSandTypes.length}</span>
+          </div>
+          {pendingSandTypes.length === 0 ? (
+            <div className="admin-empty">No pending sand types.</div>
+          ) : (
+            pendingSandTypes.map((sand) => (
+              <div className="admin-row" key={sand._id}>
+                <div>
+                  <div className="admin-company">{sand.name}</div>
+                  <div className="admin-status">{sand.category}</div>
+                </div>
+                <div className="admin-actions">
+                  <button
+                    className="admin-approve"
+                    onClick={() => onUpdateSandTypeStatus(sand._id, "approved")}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="admin-reject"
+                    onClick={() => onUpdateSandTypeStatus(sand._id, "rejected")}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </section>
 
       {revokeTarget ? (
@@ -1109,6 +1212,7 @@ export default function App() {
   const updateTransportApplicationStatus = useMutation(
     api.applications.updateTransportApplicationStatus,
   );
+  const updateSandTypeStatus = useMutation(api.admin.updateSandTypeStatus);
   const partnerStatus = useQuery(
     api.partners.myPartnerStatus,
     isAuthenticated ? {} : "skip",
@@ -1123,9 +1227,7 @@ export default function App() {
     api.partners.listTransporterDashboard,
     partnerStatus?.transporter ? {} : "skip",
   );
-  const createSandTypeAndListing = useMutation(
-    api.partners.createSandTypeAndListing,
-  );
+  const upsertSandListing = useMutation(api.partners.upsertSandListing);
   const generateImageUploadUrl = useMutation(
     api.partners.generateImageUploadUrl,
   );
@@ -1597,6 +1699,23 @@ export default function App() {
     );
   };
 
+  const handleUpdateSandTypeStatus = async (
+    sandId: string,
+    status: "approved" | "rejected",
+  ) => {
+    await updateSandTypeStatus({ sandId, status } as any);
+    setLocalSnapshot((prev: any) =>
+      prev?.pendingSandTypes
+        ? {
+            ...prev,
+            pendingSandTypes: prev.pendingSandTypes.filter(
+              (s: any) => s._id !== sandId,
+            ),
+          }
+        : prev,
+    );
+  };
+
   const hideLegacy =
     route === "admin" ||
     route === "seller-dashboard" ||
@@ -1623,6 +1742,7 @@ export default function App() {
           onRevokeTransporter={(userId, reason) =>
             revokeTransporter({ userId, reason } as any)
           }
+          onUpdateSandTypeStatus={handleUpdateSandTypeStatus}
           onSignIn={() =>
             signIn("google", {
               flow: "signIn",
@@ -1636,7 +1756,7 @@ export default function App() {
         <SellerDashboard
           data={sellerDashboard}
           approved={partnerStatus?.seller === true}
-          onCreate={(payload) => createSandTypeAndListing(payload as any)}
+          onSaveListing={(payload) => upsertSandListing(payload as any)}
           onUpdateInventory={(payload) =>
             updateListingInventory(payload as any)
           }

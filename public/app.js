@@ -622,7 +622,7 @@ function sanitizeUrl(value) {
     const url = String(value ?? '').trim();
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    if (url.startsWith('data:image/')) return url;
+    if (/^data:image\/(png|jpe?g|webp|gif);/i.test(url)) return url;
     if (url.startsWith('/')) return url;
     return '';
 }
@@ -646,12 +646,16 @@ function sandCardHTML(s) {
         ? `<img src="${imageUrl}" alt="${escapeHtml(s.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;">`
         : `<div class="sand-texture"></div><i class="fas ${iconClass}"></i>`;
     const safeColor = sanitizeColor(s.color);
+    const categoryRaw = String(s.category || "");
+    const categoryLabel = escapeHtml(
+        categoryRaw.charAt(0).toUpperCase() + categoryRaw.slice(1),
+    );
     return `<div class="sand-card" onclick="viewSandDetail(${s.id})">
         <div class="sand-card-image" style="background:${safeColor}">
             ${imageContent}
         </div>
         <div class="sand-card-body">
-            <div class="sand-cat">${s.category.charAt(0).toUpperCase() + s.category.slice(1)}</div>
+            <div class="sand-cat">${categoryLabel}</div>
             <h3>${escapeHtml(s.name)}</h3>
             <div class="sand-price">₹${s.price.toLocaleString('en-IN')} <span>/ton</span></div>
         </div>
@@ -679,12 +683,20 @@ function viewSandDetail(id) {
     const sellersHtml = sellersForSand.length
         ? `<div class="detail-sellers">
             <h4>Available Sellers</h4>
-            ${sellersForSand.map(s => `
+            ${sellersForSand.map(s => {
+                const sellerImage = sanitizeUrl(s.image);
+                const imageHtml = sellerImage
+                    ? `<img class="detail-seller-image" src="${sellerImage}" alt="${escapeHtml(s.company)}" loading="lazy" decoding="async">`
+                    : `<div class="detail-seller-image"></div>`;
+                return `
                 <div class="detail-seller-row">
-                    <span>${escapeHtml(s.company)}</span>
+                    <span class="detail-seller-info">
+                        ${imageHtml}
+                        <span>${escapeHtml(s.company)}</span>
+                    </span>
                     <span>₹${Number(s.price).toLocaleString('en-IN')}/ton</span>
-                </div>
-            `).join('')}
+                </div>`;
+            }).join('')}
         </div>`
         : `<div class="detail-sellers empty">No sellers listed yet.</div>`;
     const container = document.getElementById('detail-container');
@@ -698,7 +710,7 @@ function viewSandDetail(id) {
                 ${detailImageContent}
             </div>
             <div class="detail-info">
-                <div class="detail-cat">${sand.category.charAt(0).toUpperCase() + sand.category.slice(1)}</div>
+                <div class="detail-cat">${escapeHtml(String(sand.category || '').charAt(0).toUpperCase() + String(sand.category || '').slice(1))}</div>
                 <h1>${escapeHtml(sand.name)}</h1>
                 <div class="detail-price">₹${sand.price.toLocaleString('en-IN')} <span>/ton</span></div>
                 <p class="detail-desc">${escapeHtml(sand.desc)}</p>
@@ -939,12 +951,12 @@ function goToOrderForm() {
         <div class="order-section">
             <h3><i class="fas fa-store"></i> Dealer</h3>
             <p><strong>${escapeHtml(state.selectedDealer.name)}</strong></p>
-            <p style="font-size:0.85rem;color:var(--text-secondary)">${state.selectedDealer.location} — ₹${state.selectedDealer.finalPrice.toLocaleString('en-IN')}/ton</p>
+            <p style="font-size:0.85rem;color:var(--text-secondary)">${escapeHtml(state.selectedDealer.location)} — ₹${state.selectedDealer.finalPrice.toLocaleString('en-IN')}/ton</p>
         </div>
         <div class="order-section">
             <h3><i class="fas fa-truck"></i> Transport</h3>
             <p><strong>${escapeHtml(state.selectedTruck.name)}</strong></p>
-            <p style="font-size:0.85rem;color:var(--text-secondary)">${state.selectedTruck.capacity} — ETA: ${state.selectedTruck.eta}</p>
+            <p style="font-size:0.85rem;color:var(--text-secondary)">${escapeHtml(state.selectedTruck.capacity)} — ETA: ${escapeHtml(state.selectedTruck.eta)}</p>
         </div>
         <div class="order-section">
             <h3><i class="fas fa-weight-hanging"></i> Quantity</h3>
@@ -1745,6 +1757,22 @@ function toast(msg, type = 'info') {
     setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(100%)'; setTimeout(() => t.remove(), 400); }, 3500);
 }
 
+// ====== CONFIRM REMOVE UPLOAD ======
+let confirmRemoveCallback = null;
+function openConfirmRemove(cb) {
+    confirmRemoveCallback = typeof cb === 'function' ? cb : null;
+    openModal('confirm-remove-modal');
+}
+function confirmRemoveApprove() {
+    if (confirmRemoveCallback) confirmRemoveCallback();
+    confirmRemoveCallback = null;
+    closeModal('confirm-remove-modal');
+}
+function confirmRemoveCancel() {
+    confirmRemoveCallback = null;
+    closeModal('confirm-remove-modal');
+}
+
 function createParticles() {
     const container = document.getElementById('hero-particles');
     if (!container) return;
@@ -1953,6 +1981,13 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 function updateUploadPreview(input) {
     const box = input.closest('.upload-box');
     if (!box) return;
+    if (input.files && input.files.length > 1) {
+        toast('Only one file is allowed here. Using the last selected file.', 'info');
+        const last = input.files[input.files.length - 1];
+        const dt = new DataTransfer();
+        dt.items.add(last);
+        input.files = dt.files;
+    }
     const file = input.files?.[0];
     if (!file) return;
     let errorEl = box.querySelector('.upload-error');
@@ -1993,19 +2028,44 @@ function updateUploadPreview(input) {
         bar.style.width = '0%';
         bar.classList.remove('done');
     }
+    box.querySelectorAll('.upload-preview').forEach((el, idx) => {
+        if (idx > 0) el.remove();
+    });
     let preview = box.querySelector('.upload-preview');
     if (!preview) {
         preview = document.createElement('div');
         preview.className = 'upload-preview';
         box.appendChild(preview);
     }
+    preview.innerHTML = '';
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'upload-remove';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openConfirmRemove(() => {
+            input.value = '';
+            preview.innerHTML = '';
+            if (errorEl) errorEl.textContent = '';
+            if (okEl) okEl.textContent = '';
+            if (bar) {
+                bar.style.width = '0%';
+                bar.classList.remove('done');
+            }
+            const progressWrap = box.querySelector('.upload-progress');
+            if (progressWrap) progressWrap.remove();
+        });
+    });
     if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = () => {
             preview.innerHTML = `<img src="${reader.result}" alt="Preview">`;
+            preview.appendChild(removeBtn);
         };
         reader.readAsDataURL(file);
     } else {
         preview.textContent = file.name;
+        preview.appendChild(removeBtn);
     }
 }

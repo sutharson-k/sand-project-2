@@ -23,6 +23,54 @@ async function requireRole(ctx: any, role: "seller" | "transporter") {
   return userId;
 }
 
+
+const ALLOWED_CATEGORIES = new Set(["construction", "industrial", "landscaping", "specialty"]);
+const ICON_RE = /^fa-[a-z0-9-]+$/i;
+const COLOR_RE = /^(#[0-9a-f]{3,8}|linear-gradient\([a-z0-9#,%\.\s-]+\))$/i;
+
+function createImageUrlResolver(ctx: any) {
+  const cache = new Map<string, string | null>();
+  return async (storageId?: string) => {
+    if (!storageId) return null;
+    if (cache.has(storageId)) {
+      return cache.get(storageId) ?? null;
+    }
+    const url = await ctx.storage.getUrl(storageId as any);
+    cache.set(storageId, url ?? null);
+    return url ?? null;
+  };
+}
+
+function normalizeCategory(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function validateSandInput(args: {
+  category: string;
+  icon?: string;
+  color?: string;
+  desc?: string;
+  uses?: string;
+}) {
+  const category = normalizeCategory(args.category);
+  if (!ALLOWED_CATEGORIES.has(category)) {
+    throw new Error("Invalid category");
+  }
+  if (args.icon && !ICON_RE.test(args.icon.trim())) {
+    throw new Error("Invalid icon");
+  }
+  if (args.color && !COLOR_RE.test(args.color.trim())) {
+    throw new Error("Invalid color");
+  }
+  if (args.desc && args.desc.length > 500) {
+    throw new Error("Description too long");
+  }
+  if (args.uses && args.uses.length > 300) {
+    throw new Error("Uses too long");
+  }
+  return category;
+}
+
 export const myPartnerStatus = query({
   args: {},
   handler: async (ctx) => {
@@ -49,11 +97,13 @@ export const listSellerListings = query({
     const sandById = new Map(sand.map((s: any) => [s._id, s]));
     const sellers = await ctx.db.query("sellerProfiles").collect();
     const sellerById = new Map(sellers.map((s: any) => [s.userId, s]));
-    return listings
-      .map((l: any) => {
+    const getImageUrl = createImageUrlResolver(ctx);
+    const results = await Promise.all(
+      listings.map(async (l: any) => {
         const sandItem = sandById.get(l.sandId);
         const seller = sellerById.get(l.sellerId);
         if (!sandItem || !seller) return null;
+        if (sandItem.status && sandItem.status !== "approved") return null;
         const now = Date.now();
         const nextRestock = l.nextRestockAt ? new Date(l.nextRestockAt) : null;
         const available =
@@ -64,6 +114,8 @@ export const listSellerListings = query({
           typeof l.cutoffHour === "number"
             ? new Date(now).getHours() < l.cutoffHour
             : true;
+        const listingImageUrl = await getImageUrl(l.imageStorageId);
+        const sandImageUrl = await getImageUrl(sandItem.imageStorageId);
         return {
           listingId: l._id,
           sandId: l.sandId,
@@ -78,10 +130,12 @@ export const listSellerListings = query({
             : null,
           company: seller.company,
           location: seller.location,
+          image: listingImageUrl ?? sandImageUrl ?? sandItem.image ?? "",
           sand: sandItem,
         };
-      })
-      .filter(Boolean);
+      }),
+    );
+    return results.filter(Boolean);
   },
 });
 
@@ -111,8 +165,9 @@ export const listTransporters = query({
   },
 });
 
-export const createSandTypeAndListing = mutation({
+export const upsertSandListing = mutation({
   args: {
+    sandId: v.optional(v.id("sandTypes")),
     name: v.string(),
     category: v.string(),
     price: v.number(),
@@ -132,18 +187,60 @@ export const createSandTypeAndListing = mutation({
     if (!args.imageStorageId) {
       throw new Error("Image upload required");
     }
-    const existing = await ctx.db.query("sandTypes").collect();
-    const found = existing.find(
-      (s: any) =>
-        s.name.toLowerCase().trim() === args.name.toLowerCase().trim() &&
-        s.category.toLowerCase().trim() === args.category.toLowerCase().trim(),
-    );
+    const upsertListing = async (sandId: any, sandName: string) => {
+      const existingListing = await ctx.db
+        .query("sellerSandListings")
+        .withIndex("by_seller", (q: any) => q.eq("sellerId", sellerId))
+        .filter((q: any) => q.eq(q.field("sandId"), sandId))
+        .unique();
+      if (existingListing) {
+        await ctx.db.patch(existingListing._id, {
+          price: args.price,
+          imageStorageId: args.imageStorageId,
+        });
+        await ctx.db.insert("notifications", {
+          userId: sellerId,
+          message: `Your sand listing for ${sandName} was updated.`,
+          read: false,
+          createdAt: Date.now(),
+        });
+        return existingListing._id;
+      }
+      return await ctx.db.insert("sellerSandListings", {
+        sellerId,
+        sandId,
+        price: args.price,
+        imageStorageId: args.imageStorageId,
+        createdAt: Date.now(),
+      });
+    };
+    if (args.sandId) {
+      const sand = await ctx.db.get(args.sandId);
+      if (!sand || sand.status !== "approved") {
+        throw new Error("Sand type not available");
+      }
+      return await upsertListing(args.sandId, sand.name);
+    }
+    const normalizedCategory = validateSandInput({
+      category: args.category,
+      icon: args.icon,
+      color: args.color,
+      desc: args.desc,
+      uses: args.uses,
+    });
+    const found = await ctx.db
+      .query("sandTypes")
+      .withIndex("by_name_category", (q: any) =>
+        q.eq("name", args.name.trim()).eq("category", normalizedCategory),
+      )
+      .unique();
     const sandData = {
       name: args.name,
-      category: args.category,
+      category: normalizedCategory,
       color: args.color ?? "linear-gradient(135deg,#C2B280,#A89060)",
       image: args.image || "",
       imageStorageId: args.imageStorageId,
+      status: "pending",
       price: args.price,
       grain: args.grain ?? "0.5 - 2mm",
       moisture: args.moisture ?? "2-5%",
@@ -157,32 +254,14 @@ export const createSandTypeAndListing = mutation({
     };
     const sandId = found
       ? await (async () => {
-          await ctx.db.patch(found._id, sandData);
+          await ctx.db.patch(found._id, {
+            ...sandData,
+            status: found.status ?? "pending",
+          });
           return found._id;
         })()
       : await ctx.db.insert("sandTypes", sandData);
-
-    const existingListing = await ctx.db
-      .query("sellerSandListings")
-      .withIndex("by_seller", (q: any) => q.eq("sellerId", sellerId))
-      .filter((q: any) => q.eq(q.field("sandId"), sandId))
-      .unique();
-    if (existingListing) {
-      await ctx.db.patch(existingListing._id, { price: args.price });
-      await ctx.db.insert("notifications", {
-        userId: sellerId,
-        message: `Your sand listing for ${args.name} was updated.`,
-        read: false,
-        createdAt: Date.now(),
-      });
-      return existingListing._id;
-    }
-    return await ctx.db.insert("sellerSandListings", {
-      sellerId,
-      sandId,
-      price: args.price,
-      createdAt: Date.now(),
-    });
+    return await upsertListing(sandId, args.name);
   },
 });
 

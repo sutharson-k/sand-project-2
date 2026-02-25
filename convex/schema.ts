@@ -10,6 +10,7 @@ export default defineSchema({
     color: v.string(),
     image: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    status: v.optional(v.string()),
     price: v.number(),
     grain: v.string(),
     moisture: v.string(),
@@ -18,7 +19,10 @@ export default defineSchema({
     icon: v.string(),
     desc: v.string(),
     uses: v.string(),
-  }).index("by_category", ["category"]),
+  })
+    .index("by_category", ["category"])
+    .index("by_status", ["status"])
+    .index("by_name_category", ["name", "category"]),
   dealers: defineTable({
     name: v.string(),
     location: v.string(),
@@ -134,6 +138,7 @@ export default defineSchema({
     sellerId: v.id("users"),
     sandId: v.id("sandTypes"),
     price: v.number(),
+    imageStorageId: v.optional(v.id("_storage")),
     availableTons: v.optional(v.number()),
     cutoffHour: v.optional(v.number()),
     nextRestockAt: v.optional(v.number()),

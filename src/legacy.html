@@ -687,6 +687,24 @@
         </div>
     </div>
 
+    <!-- ====== CONFIRM REMOVE UPLOAD MODAL ====== -->
+    <div class="modal-overlay" id="confirm-remove-modal">
+        <div class="modal auth-modal">
+            <button class="modal-close" onclick="closeModal('confirm-remove-modal')">&times;</button>
+            <div class="auth-container">
+                <div class="auth-header">
+                    <i class="fas fa-trash-alt auth-logo-icon"></i>
+                    <h2>Remove file?</h2>
+                    <p>This will clear the selected file from this upload box.</p>
+                </div>
+                <div class="form-row" style="gap:12px;margin-top:10px;">
+                    <button type="button" class="btn btn-outline btn-full" onclick="confirmRemoveCancel()">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-full" onclick="confirmRemoveApprove()">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ====== PAGE: TRACKING ====== -->
     <section class="page" id="page-tracking">
         <div class="tracking-container" id="tracking-container"></div>

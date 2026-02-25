@@ -6,11 +6,28 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 export const listSandTypes = query({
   args: {},
   handler: async (ctx) => {
+    const [approved, missing] = await Promise.all([
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", "approved"))
+        .collect(),
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", undefined as any))
+        .collect(),
+    ]);
+    return [...approved, ...missing];
+  },
+});
+
+export const listAllSandTypes = query({
+  args: {},
+  handler: async (ctx) => {
     return await ctx.db.query("sandTypes").collect();
   },
 });
 
-export const seedSandTypes = mutation({
+export const seedSandTypes = internalMutation({
   args: {
     items: v.array(
       v.object({
@@ -28,6 +45,7 @@ export const seedSandTypes = mutation({
         uses: v.string(),
       }),
     ),
+    approve: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("sandTypes").collect();
@@ -39,7 +57,8 @@ export const seedSandTypes = mutation({
         await ctx.db.patch(found._id, { ...item });
         ids.push(found._id);
       } else {
-        const id = await ctx.db.insert("sandTypes", item);
+        const status = args.approve === false ? "pending" : "approved";
+        const id = await ctx.db.insert("sandTypes", { ...item, status });
         ids.push(id);
       }
     }
@@ -50,7 +69,17 @@ export const seedSandTypes = mutation({
 export const listSandTypesWithUrls = query({
   args: {},
   handler: async (ctx) => {
-    const sand = await ctx.db.query("sandTypes").collect();
+    const [approved, missing] = await Promise.all([
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", "approved"))
+        .collect(),
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", undefined as any))
+        .collect(),
+    ]);
+    const sand = [...approved, ...missing];
     const withUrls = await Promise.all(
       sand.map(async (s) => {
         const url = s.imageStorageId
@@ -66,11 +95,19 @@ export const listSandTypesWithUrls = query({
 export const bootstrap = query({
   args: {},
   handler: async (ctx) => {
-    const [sand, dealers, trucks] = await Promise.all([
-      ctx.db.query("sandTypes").collect(),
+    const [approved, missing, dealers, trucks] = await Promise.all([
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", "approved"))
+        .collect(),
+      ctx.db
+        .query("sandTypes")
+        .withIndex("by_status", (q) => q.eq("status", undefined as any))
+        .collect(),
       ctx.db.query("dealers").collect(),
       ctx.db.query("trucks").collect(),
     ]);
+    const sand = [...approved, ...missing];
     const sandWithUrls = await Promise.all(
       sand.map(async (s) => {
         const url = s.imageStorageId

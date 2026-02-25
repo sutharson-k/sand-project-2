@@ -237,7 +237,7 @@ async function main() {
   await client.mutation(api.sand.seedSandTypes, { items: sandTypes });
   await client.mutation(api.sand.seedDealers, { items: dealers });
   await client.mutation(api.sand.seedTrucks, { items: trucks });
-  const sands = await client.query(api.sand.listSandTypes);
+  const sands = await client.query(api.sand.listAllSandTypes);
   const sandByName = new Map(sands.map((s) => [s.name, s]));
 
   for (const [fileName, sandName] of fileMap.entries()) {
